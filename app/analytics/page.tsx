@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -19,6 +19,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProtectedLayout } from "@/components/protected-layout";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { useClientes } from "@/hooks/use-clientes";
 import { BarChart } from "@/components/charts/bar-chart";
 import { LineChart } from "@/components/charts/line-chart";
 import { DoughnutChart } from "@/components/charts/doughnut-chart";
@@ -29,39 +30,117 @@ import {
   Users,
   BarChart3,
   Settings,
+  Download,
+  Filter,
+  RefreshCw,
+  TrendingDown,
+  Activity,
+  Calendar,
+  UserCheck,
+  Percent,
+  Bug,
 } from "lucide-react";
 import Link from "next/link";
 import { SidebarLayout } from "@/components/sidebar-layout";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/use-auth";
+import { SimpleStatus } from "@/components/analytics/simple-status";
 
 export default function AnalyticsPage() {
   const {
+    metas,
+    regrasComissao,
     obterVendasPorPeriodo,
     obterVendasPorProduto,
     obterProgressoMetas,
     calcularComissoes,
+    obterEstatisticasGerais,
+    obterTendencias,
+    exportarDados,
   } = useAnalytics();
+  const { users } = useAuth();
+  const { clientes } = useClientes();
 
   const [periodoSelecionado, setPeriodoSelecionado] = useState<
     "semanal" | "quinzenal" | "mensal"
   >("mensal");
   const [mesSelecionado, setMesSelecionado] = useState("Janeiro");
   const [anoSelecionado, setAnoSelecionado] = useState(2024);
+  const [vendedorFiltro, setVendedorFiltro] = useState<string>("");
+  const [produtoFiltro, setProdutoFiltro] = useState<string>("");
+  const [statusFiltro, setStatusFiltro] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showDebug, setShowDebug] = useState(false); // Controla se mostra debug ou não
 
-  const vendasPorPeriodo = obterVendasPorPeriodo(periodoSelecionado);
-  const vendasPorProduto = obterVendasPorProduto(
+  // Memoizar dados para melhor performance
+  const dadosAnalytics = useMemo(() => {
+    try {
+      const vendasPorPeriodo = obterVendasPorPeriodo(periodoSelecionado);
+      const vendasPorProduto = obterVendasPorProduto(
+        mesSelecionado,
+        anoSelecionado,
+      );
+      const progressoMetas = obterProgressoMetas(mesSelecionado, anoSelecionado);
+      const comissoes = calcularComissoes(mesSelecionado, anoSelecionado);
+      const estatisticas = obterEstatisticasGerais();
+      const tendencias = obterTendencias();
+
+      return {
+        vendasPorPeriodo,
+        vendasPorProduto,
+        progressoMetas,
+        comissoes,
+        estatisticas,
+        tendencias,
+      };
+    } catch (error) {
+      console.error("Erro ao carregar dados do analytics:", error);
+      return {
+        vendasPorPeriodo: [],
+        vendasPorProduto: [],
+        progressoMetas: [],
+        comissoes: [],
+        estatisticas: {
+          totalVendas: 0,
+          totalClientes: 0,
+          ticketMedio: 0,
+          taxaConversao: 0,
+          vendasPorStatus: []
+        },
+        tendencias: {
+          crescimentoMensal: 0,
+          produtosMaisVendidos: [],
+          vendedoresTop: []
+        }
+      };
+    }
+  }, [
+    periodoSelecionado,
     mesSelecionado,
     anoSelecionado,
-  );
-  const progressoMetas = obterProgressoMetas(mesSelecionado, anoSelecionado);
-  const comissoes = calcularComissoes(mesSelecionado, anoSelecionado);
+    vendedorFiltro,
+    produtoFiltro,
+    statusFiltro,
+    obterVendasPorPeriodo,
+    obterVendasPorProduto,
+    obterProgressoMetas,
+    calcularComissoes,
+    obterEstatisticasGerais,
+    obterTendencias,
+  ]);
 
   // Dados para gráficos
   const dadosVendasPeriodo = {
-    labels: vendasPorPeriodo.map((v) => v.periodo),
+    labels: dadosAnalytics.vendasPorPeriodo.length > 0 
+      ? dadosAnalytics.vendasPorPeriodo.map((v) => v.periodo)
+      : ["Sem dados"],
     datasets: [
       {
         label: "Vendas",
-        data: vendasPorPeriodo.map((v) => v.valor),
+        data: dadosAnalytics.vendasPorPeriodo.length > 0
+          ? dadosAnalytics.vendasPorPeriodo.map((v) => v.valor)
+          : [0],
         backgroundColor: "rgba(74, 222, 128, 0.5)",
         borderColor: "rgba(74, 222, 128, 1)",
         borderWidth: 1,
@@ -69,12 +148,18 @@ export default function AnalyticsPage() {
     ],
   };
 
+
+
   const dadosTicketMedio = {
-    labels: vendasPorPeriodo.map((v) => v.periodo),
+    labels: dadosAnalytics.vendasPorPeriodo.length > 0
+      ? dadosAnalytics.vendasPorPeriodo.map((v) => v.periodo)
+      : ["Sem dados"],
     datasets: [
       {
         label: "Ticket Médio",
-        data: vendasPorPeriodo.map((v) => v.ticketMedio),
+        data: dadosAnalytics.vendasPorPeriodo.length > 0
+          ? dadosAnalytics.vendasPorPeriodo.map((v) => v.ticketMedio)
+          : [0],
         borderColor: "rgba(59, 130, 246, 1)",
         backgroundColor: "rgba(59, 130, 246, 0.1)",
         tension: 0.4,
@@ -83,10 +168,14 @@ export default function AnalyticsPage() {
   };
 
   const dadosVendasProduto = {
-    labels: vendasPorProduto.map((v) => v.produto),
+    labels: dadosAnalytics.vendasPorProduto.length > 0
+      ? dadosAnalytics.vendasPorProduto.map((v) => v.produto)
+      : ["Sem dados"],
     datasets: [
       {
-        data: vendasPorProduto.map((v) => v.valor),
+        data: dadosAnalytics.vendasPorProduto.length > 0
+          ? dadosAnalytics.vendasPorProduto.map((v) => v.valor)
+          : [0],
         backgroundColor: [
           "#4ade80",
           "#60a5fa",
@@ -104,25 +193,33 @@ export default function AnalyticsPage() {
   };
 
   const dadosMetasVsVendas = {
-    labels: progressoMetas.map((p) => p.usuario),
+    labels: dadosAnalytics.progressoMetas.length > 0
+      ? dadosAnalytics.progressoMetas.map((p) => p.usuario)
+      : ["Sem dados"],
     datasets: [
       {
         label: "Meta",
-        data: progressoMetas.map((p) => p.meta),
+        data: dadosAnalytics.progressoMetas.length > 0
+          ? dadosAnalytics.progressoMetas.map((p) => p.meta)
+          : [0],
         backgroundColor: "rgba(239, 68, 68, 0.5)",
         borderColor: "rgba(239, 68, 68, 1)",
         borderWidth: 1,
       },
       {
         label: "Vendido",
-        data: progressoMetas.map((p) => p.vendido),
+        data: dadosAnalytics.progressoMetas.length > 0
+          ? dadosAnalytics.progressoMetas.map((p) => p.vendido)
+          : [0],
         backgroundColor: "rgba(74, 222, 128, 0.5)",
         borderColor: "rgba(74, 222, 128, 1)",
         borderWidth: 1,
       },
       {
         label: "Projeção",
-        data: progressoMetas.map((p) => p.projecao),
+        data: dadosAnalytics.progressoMetas.length > 0
+          ? dadosAnalytics.progressoMetas.map((p) => p.projecao)
+          : [0],
         backgroundColor: "rgba(59, 130, 246, 0.5)",
         borderColor: "rgba(59, 130, 246, 1)",
         borderWidth: 1,
@@ -131,14 +228,14 @@ export default function AnalyticsPage() {
   };
 
   // Calcular totais
-  const totalVendas = vendasPorPeriodo.reduce((acc, v) => acc + v.valor, 0);
-  const totalQuantidade = vendasPorPeriodo.reduce(
+  const totalVendas = dadosAnalytics.vendasPorPeriodo.reduce((acc, v) => acc + v.valor, 0);
+  const totalQuantidade = dadosAnalytics.vendasPorPeriodo.reduce(
     (acc, v) => acc + v.quantidade,
     0,
   );
   const ticketMedioGeral =
     totalQuantidade > 0 ? totalVendas / totalQuantidade : 0;
-  const totalComissoes = comissoes.reduce((acc, c) => acc + c.totalComissao, 0);
+  const totalComissoes = dadosAnalytics.comissoes.reduce((acc, c) => acc + c.totalComissao, 0);
 
   const meses = [
     "Janeiro",
@@ -155,6 +252,20 @@ export default function AnalyticsPage() {
     "Dezembro",
   ];
 
+  const vendedores = users.filter(u => u.role === "user").map(u => u.nome);
+  const produtos = [...new Set(dadosAnalytics.vendasPorProduto.map(v => v.produto))];
+  const statusOptions = ["pago", "pendente", "cancelado"];
+
+  const handleExportar = (tipo: 'vendas' | 'metas' | 'comissoes') => {
+    exportarDados(tipo);
+  };
+
+  const limparFiltros = () => {
+    setVendedorFiltro("");
+    setProdutoFiltro("");
+    setStatusFiltro("");
+  };
+
   return (
     <ProtectedLayout adminOnly>
       <div className="min-h-screen bg-gray-50">
@@ -169,7 +280,15 @@ export default function AnalyticsPage() {
                   Análise completa de vendas, metas e comissões
                 </p>
               </div>
-              <div className="mt-4 md:mt-0 flex gap-4">
+              <div className="mt-4 md:mt-0 flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleExportar('vendas')}
+                  className="border-primary text-primary hover:bg-primary/10"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar Vendas
+                </Button>
                 <Link href="/analytics/metas">
                   <Button
                     variant="outline"
@@ -188,150 +307,89 @@ export default function AnalyticsPage() {
                     Configurar Comissões
                   </Button>
                 </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDebug(!showDebug)}
+                  className="text-gray-500 hover:text-gray-700"
+                  title="Toggle Debug"
+                >
+                  <Bug className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
-            {/* Filtros */}
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle>Filtros</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Período
-                    </label>
-                    <Select
-                      value={periodoSelecionado}
-                      onValueChange={(value: any) =>
-                        setPeriodoSelecionado(value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="semanal">Semanal</SelectItem>
-                        <SelectItem value="quinzenal">Quinzenal</SelectItem>
-                        <SelectItem value="mensal">Mensal</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Mês
-                    </label>
-                    <Select
-                      value={mesSelecionado}
-                      onValueChange={setMesSelecionado}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {meses.map((mes) => (
-                          <SelectItem key={mes} value={mes}>
-                            {mes}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Ano
-                    </label>
-                    <Select
-                      value={anoSelecionado.toString()}
-                      onValueChange={(value) =>
-                        setAnoSelecionado(Number(value))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="2023">2023</SelectItem>
-                        <SelectItem value="2024">2024</SelectItem>
-                        <SelectItem value="2025">2025</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Status Simples - Apenas em desenvolvimento */}
+            {showDebug && (
+              <SimpleStatus 
+                clientes={clientes}
+                users={users}
+                isLoading={isLoading}
+              />
+            )}
 
-            {/* Cards de Resumo */}
+            {/* Cards de Resumo Melhorados */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">
+                  <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
                     Total de Vendas
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center">
-                    <DollarSign className="h-5 w-5 text-primary mr-2" />
-                    <div className="text-2xl font-bold">
-                      {totalVendas.toLocaleString("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                      })}
-                    </div>
+                  <div className="text-2xl font-bold">
+                    {totalVendas.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">
+                  <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
                     Ticket Médio
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center">
-                    <TrendingUp className="h-5 w-5 text-blue-600 mr-2" />
-                    <div className="text-2xl font-bold">
-                      {ticketMedioGeral.toLocaleString("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                      })}
-                    </div>
+                  <div className="text-2xl font-bold">
+                    {ticketMedioGeral.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">
+                  <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <Users className="h-4 w-4" />
                     Total Comissões
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center">
-                    <Users className="h-5 w-5 text-green-600 mr-2" />
-                    <div className="text-2xl font-bold">
-                      {totalComissoes.toLocaleString("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                      })}
-                    </div>
+                  <div className="text-2xl font-bold">
+                    {totalComissoes.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">
+                  <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
                     Quantidade de Vendas
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center">
-                    <BarChart3 className="h-5 w-5 text-amber-600 mr-2" />
-                    <div className="text-2xl font-bold">{totalQuantidade}</div>
-                  </div>
+                  <div className="text-2xl font-bold">{totalQuantidade}</div>
                 </CardContent>
               </Card>
             </div>
@@ -355,7 +413,16 @@ export default function AnalyticsPage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <BarChart data={dadosVendasPeriodo} height={300} />
+                      {dadosAnalytics.vendasPorPeriodo.length === 0 ? (
+                        <div className="flex items-center justify-center h-[300px] text-gray-500">
+                          <div className="text-center">
+                            <div className="text-lg font-medium mb-2">Nenhum dado encontrado</div>
+                            <div className="text-sm">Não há vendas registradas para o período selecionado</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <BarChart data={dadosVendasPeriodo} height={300} />
+                      )}
                     </CardContent>
                   </Card>
 
@@ -367,7 +434,16 @@ export default function AnalyticsPage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <LineChart data={dadosTicketMedio} height={300} />
+                      {dadosAnalytics.vendasPorPeriodo.length === 0 ? (
+                        <div className="flex items-center justify-center h-[300px] text-gray-500">
+                          <div className="text-center">
+                            <div className="text-lg font-medium mb-2">Nenhum dado encontrado</div>
+                            <div className="text-sm">Não há vendas registradas para o período selecionado</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <LineChart data={dadosTicketMedio} height={300} />
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -396,7 +472,7 @@ export default function AnalyticsPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {vendasPorProduto.slice(0, 5).map((produto, index) => (
+                        {dadosAnalytics.vendasPorProduto.slice(0, 5).map((produto, index) => (
                           <div
                             key={produto.produto}
                             className="flex items-center justify-between"
@@ -456,7 +532,7 @@ export default function AnalyticsPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {progressoMetas.map((progresso) => (
+                        {dadosAnalytics.progressoMetas.map((progresso) => (
                           <div
                             key={progresso.usuario}
                             className="border rounded-lg p-4"
@@ -465,21 +541,21 @@ export default function AnalyticsPage() {
                               <h4 className="font-medium">
                                 {progresso.usuario}
                               </h4>
-                              <span
-                                className={`px-2 py-1 rounded text-xs font-medium ${
+                              <Badge
+                                variant={
                                   progresso.percentualAlcancado >= 100
-                                    ? "bg-green-100 text-green-800"
+                                    ? "default"
                                     : progresso.percentualAlcancado >= 80
-                                      ? "bg-yellow-100 text-yellow-800"
-                                      : "bg-red-100 text-red-800"
-                                }`}
+                                      ? "secondary"
+                                      : "destructive"
+                                }
                               >
                                 {progresso.percentualAlcancado.toFixed(1)}%
-                              </span>
+                              </Badge>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                               <div
-                                className="bg-primary h-2 rounded-full"
+                                className="bg-primary h-2 rounded-full transition-all duration-300"
                                 style={{
                                   width: `${Math.min(100, progresso.percentualAlcancado)}%`,
                                 }}
@@ -526,14 +602,26 @@ export default function AnalyticsPage() {
               <TabsContent value="comissoes" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Comissões por Vendedor</CardTitle>
-                    <CardDescription>
-                      Detalhamento das comissões calculadas
-                    </CardDescription>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle>Comissões por Vendedor</CardTitle>
+                        <CardDescription>
+                          Detalhamento das comissões calculadas
+                        </CardDescription>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExportar('comissoes')}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Exportar
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {comissoes.map((comissao) => (
+                      {dadosAnalytics.comissoes.map((comissao) => (
                         <div
                           key={comissao.usuarioId}
                           className="border rounded-lg p-4"

@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext, useMemo, useCallback } from "react";
 import { useClientes } from "@/hooks/use-clientes";
 import { useAuth } from "@/hooks/use-auth";
 import type {
@@ -34,11 +34,54 @@ type AnalyticsContextType = {
   ) => VendaPorPeriodo[];
   obterVendasPorProduto: (mes?: string, ano?: number) => VendaPorProduto[];
   obterProgressoMetas: (mes: string, ano: number) => ProgressoMeta[];
+  // Novas funcionalidades
+  obterEstatisticasGerais: () => {
+    totalVendas: number;
+    totalClientes: number;
+    ticketMedio: number;
+    taxaConversao: number;
+    vendasPorStatus: { status: string; quantidade: number; valor: number }[];
+  };
+  obterTendencias: () => {
+    crescimentoMensal: number;
+    produtosMaisVendidos: VendaPorProduto[];
+    vendedoresTop: { usuario: string; vendas: number; valor: number }[];
+  };
+  exportarDados: (tipo: 'vendas' | 'metas' | 'comissoes') => void;
 };
 
 const AnalyticsContext = createContext<AnalyticsContextType | undefined>(
   undefined,
 );
+
+// Função utilitária para parsear valores monetários
+const parsearValor = (valor: string): number => {
+  if (!valor) return 0;
+  
+  // Se já é um número, retornar diretamente
+  if (typeof valor === 'number') return valor;
+  
+  // Limpar o valor
+  let valorLimpo = valor.toString()
+    .replace(/R\$\s*/g, "") // Remove R$ e espaços
+    .replace(/\./g, "") // Remove pontos (separadores de milhares)
+    .replace(",", ".") // Substitui vírgula por ponto
+    .trim();
+  
+  const numero = Number.parseFloat(valorLimpo);
+  
+
+  
+  return isNaN(numero) ? 0 : numero;
+};
+
+// Função utilitária para obter data do cliente
+const obterDataCliente = (cliente: any): Date => {
+  if (cliente.status === "pago" && cliente.data_pagamento) {
+    return new Date(cliente.data_pagamento + 'T00:00:00');
+  }
+  return new Date(cliente.data + 'T00:00:00');
+};
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const [metas, setMetas] = useState<Meta[]>([]);
@@ -51,62 +94,89 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
   // Carregar dados do localStorage
   useEffect(() => {
-    const metasSalvas = localStorage.getItem("metas");
-    if (metasSalvas) {
-      setMetas(JSON.parse(metasSalvas));
-    } else {
-      // Metas de exemplo
-      const metasExemplo: Meta[] = [
-        {
-          id: "1",
-          usuario: "Amanda",
-          mes: "Janeiro",
-          ano: 2024,
-          valorMeta: 50000,
-          criadaEm: "2024-01-01",
-          tipo: "valor",
-        },
-        {
-          id: "2",
-          usuario: "Lais",
-          mes: "Janeiro",
-          ano: 2024,
-          valorMeta: 45000,
-          criadaEm: "2024-01-01",
-          tipo: "valor",
-        },
-      ];
-      setMetas(metasExemplo);
-      localStorage.setItem("metas", JSON.stringify(metasExemplo));
-    }
+    try {
+      const metasSalvas = localStorage.getItem("metas");
+      if (metasSalvas) {
+        setMetas(JSON.parse(metasSalvas));
+      } else {
+        // Metas de exemplo
+        const metasExemplo: Meta[] = [
+          {
+            id: "1",
+            usuario: "Amanda",
+            mes: "Janeiro",
+            ano: 2024,
+            valorMeta: 50000,
+            criadaEm: "2024-01-01",
+            tipo: "valor",
+          },
+          {
+            id: "2",
+            usuario: "Lais",
+            mes: "Janeiro",
+            ano: 2024,
+            valorMeta: 45000,
+            criadaEm: "2024-01-01",
+            tipo: "valor",
+          },
+        ];
+        setMetas(metasExemplo);
+        localStorage.setItem("metas", JSON.stringify(metasExemplo));
+      }
 
-    const regrasSalvas = localStorage.getItem("regrasComissao");
-    if (regrasSalvas) {
-      setRegrasComissao(JSON.parse(regrasSalvas));
-    } else {
-      // Regras de comissão de exemplo
-      const regrasExemplo: RegraComissao[] = [
-        { id: "1", produto: "Margem", percentual: 2.5, ativa: true, tipo: "produto" },
-        { id: "2", produto: "Cartão", percentual: 3.0, ativa: true, tipo: "produto" },
-        { id: "3", produto: "Portabilidade", percentual: 2.0, ativa: true, tipo: "produto" },
-        { id: "4", produto: "FGTS", percentual: 4.0, ativa: true, tipo: "produto" },
-        { id: "5", produto: "Consignado Priv", percentual: 3.5, ativa: true, tipo: "produto" },
-      ];
-      setRegrasComissao(regrasExemplo);
-      localStorage.setItem("regrasComissao", JSON.stringify(regrasExemplo));
+      const regrasSalvas = localStorage.getItem("regrasComissao");
+      if (regrasSalvas) {
+        setRegrasComissao(JSON.parse(regrasSalvas));
+      } else {
+        // Regras de comissão de exemplo
+        const regrasExemplo: RegraComissao[] = [
+          { id: "1", produto: "Margem", percentual: 2.5, ativa: true, tipo: "produto" },
+          { id: "2", produto: "Cartão", percentual: 3.0, ativa: true, tipo: "produto" },
+          { id: "3", produto: "Portabilidade", percentual: 2.0, ativa: true, tipo: "produto" },
+          { id: "4", produto: "FGTS", percentual: 4.0, ativa: true, tipo: "produto" },
+          { id: "5", produto: "Consignado Priv", percentual: 3.5, ativa: true, tipo: "produto" },
+        ];
+        setRegrasComissao(regrasExemplo);
+        localStorage.setItem("regrasComissao", JSON.stringify(regrasExemplo));
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados do analytics:", error);
     }
   }, []);
 
   // Salvar dados no localStorage
   useEffect(() => {
-    localStorage.setItem("metas", JSON.stringify(metas));
+    try {
+      localStorage.setItem("metas", JSON.stringify(metas));
+    } catch (error) {
+      console.error("Erro ao salvar metas:", error);
+    }
   }, [metas]);
 
   useEffect(() => {
-    localStorage.setItem("regrasComissao", JSON.stringify(regrasComissao));
+    try {
+      localStorage.setItem("regrasComissao", JSON.stringify(regrasComissao));
+    } catch (error) {
+      console.error("Erro ao salvar regras de comissão:", error);
+    }
   }, [regrasComissao]);
 
-  const adicionarMeta = (meta: Omit<Meta, "id" | "criadaEm">) => {
+  // Memoizar dados processados para melhor performance
+  const dadosProcessados = useMemo(() => {
+    const clientesPagos = clientes.filter(c => c.status === "pago");
+    const clientesPendentes = clientes.filter(c => c.status === "pendente");
+    const clientesCancelados = clientes.filter(c => c.status === "cancelado");
+
+    return {
+      clientesPagos,
+      clientesPendentes,
+      clientesCancelados,
+      totalClientes: clientes.length,
+      totalVendas: clientesPagos.reduce((acc, c) => acc + parsearValor(c.valor), 0),
+    };
+  }, [clientes]);
+
+  const adicionarMeta = useCallback((meta: Omit<Meta, "id" | "criadaEm">) => {
     const novaMeta: Meta = {
       ...meta,
       id: crypto.randomUUID(),
@@ -114,41 +184,41 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       tipo: "valor",
     };
     setMetas((prev) => [...prev, novaMeta]);
-  };
+  }, []);
 
-  const atualizarMeta = (metaAtualizada: Meta) => {
+  const atualizarMeta = useCallback((metaAtualizada: Meta) => {
     setMetas((prev) =>
       prev.map((meta) =>
         meta.id === metaAtualizada.id ? metaAtualizada : meta,
       ),
     );
-  };
+  }, []);
 
-  const removerMeta = (id: string) => {
+  const removerMeta = useCallback((id: string) => {
     setMetas((prev) => prev.filter((meta) => meta.id !== id));
-  };
+  }, []);
 
-  const adicionarRegraComissao = (regra: Omit<RegraComissao, "id">) => {
+  const adicionarRegraComissao = useCallback((regra: Omit<RegraComissao, "id">) => {
     const novaRegra: RegraComissao = {
       ...regra,
       id: crypto.randomUUID(),
     };
     setRegrasComissao((prev) => [...prev, novaRegra]);
-  };
+  }, []);
 
-  const atualizarRegraComissao = (regraAtualizada: RegraComissao) => {
+  const atualizarRegraComissao = useCallback((regraAtualizada: RegraComissao) => {
     setRegrasComissao((prev) =>
       prev.map((regra) =>
         regra.id === regraAtualizada.id ? regraAtualizada : regra,
       ),
     );
-  };
+  }, []);
 
-  const removerRegraComissao = (id: string) => {
+  const removerRegraComissao = useCallback((id: string) => {
     setRegrasComissao((prev) => prev.filter((regra) => regra.id !== id));
-  };
+  }, []);
 
-  const adicionarRegraComissaoBanco = (
+  const adicionarRegraComissaoBanco = useCallback((
     regra: Omit<RegraComissaoBanco, "id">,
   ) => {
     const novaRegra: RegraComissaoBanco = {
@@ -156,30 +226,27 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       id: crypto.randomUUID(),
     };
     setRegrasComissaoBanco((prev) => [...prev, novaRegra]);
-  };
+  }, []);
 
-  const atualizarRegraComissaoBanco = (regraAtualizada: RegraComissaoBanco) => {
+  const atualizarRegraComissaoBanco = useCallback((regraAtualizada: RegraComissaoBanco) => {
     setRegrasComissaoBanco((prev) =>
       prev.map((regra) =>
         regra.id === regraAtualizada.id ? regraAtualizada : regra,
       ),
     );
-  };
+  }, []);
 
-  const removerRegraComissaoBanco = (id: string) => {
+  const removerRegraComissaoBanco = useCallback((id: string) => {
     setRegrasComissaoBanco((prev) => prev.filter((regra) => regra.id !== id));
-  };
+  }, []);
 
-  const calcularComissoes = (mes: string, ano: number): ComissaoCalculada[] => {
+  const calcularComissoes = useCallback((mes: string, ano: number): ComissaoCalculada[] => {
     const vendedores = users.filter((user) => user.role === "user");
     const comissoes: ComissaoCalculada[] = [];
 
     for (const vendedor of vendedores) {
       const vendasVendedor = clientes.filter((cliente) => {
-        // Para pagos, usar data_pagamento se disponível, senão usar data de cadastro
-        const dataCliente = cliente.status === "pago" && cliente.data_pagamento 
-          ? new Date(cliente.data_pagamento + 'T00:00:00')
-          : new Date(cliente.data + 'T00:00:00');
+        const dataCliente = obterDataCliente(cliente);
         const mesCliente = dataCliente.toLocaleDateString("pt-BR", {
           month: "long",
         });
@@ -194,14 +261,8 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
       const vendasPorProduto = vendasVendedor.reduce(
         (acc, cliente) => {
-          const valor = Number.parseFloat(
-            cliente.valor
-              .replace("R$", "")
-              .replace(".", "")
-              .replace(",", ".")
-              .trim(),
-          );
-          if (isNaN(valor)) return acc;
+          const valor = parsearValor(cliente.valor);
+          if (valor === 0) return acc;
 
           const produtoExistente = acc.find(
             (v) => v.produto === cliente.produto && v.banco === cliente.banco,
@@ -230,7 +291,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         );
         const regraBanco = regrasComissaoBanco.find(
           (r) => r.banco === venda.banco && r.ativa,
-        ); // Use venda.banco instead of cliente.banco
+        );
 
         let comissaoTotal = 0;
         if (regraProduto) {
@@ -264,9 +325,9 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     }
 
     return comissoes;
-  };
+  }, [clientes, users, regrasComissao, regrasComissaoBanco]);
 
-  const obterVendasPorPeriodo = (
+  const obterVendasPorPeriodo = useCallback((
     periodo: "semanal" | "quinzenal" | "mensal",
   ): VendaPorPeriodo[] => {
     const agora = new Date();
@@ -307,22 +368,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       }
 
       const vendasPeriodo = clientes.filter((cliente) => {
-        // Para pagos, usar data_pagamento se disponível, senão usar data de cadastro
-        const dataCliente = cliente.status === "pago" && cliente.data_pagamento 
-          ? new Date(cliente.data_pagamento + 'T00:00:00')
-          : new Date(cliente.data + 'T00:00:00');
+        const dataCliente = obterDataCliente(cliente);
         return dataCliente >= dataInicio && dataCliente <= dataFim;
       });
 
       const valorTotal = vendasPeriodo.reduce((acc, cliente) => {
-        const valor = Number.parseFloat(
-          cliente.valor
-            .replace("R$", "")
-            .replace(".", "")
-            .replace(",", ".")
-            .trim(),
-        );
-        return isNaN(valor) ? acc : acc + valor;
+        return acc + parsearValor(cliente.valor);
       }, 0);
 
       const quantidade = vendasPeriodo.length;
@@ -337,9 +388,9 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     }
 
     return vendas;
-  };
+  }, [clientes]);
 
-  const obterVendasPorProduto = (
+  const obterVendasPorProduto = useCallback((
     mes?: string,
     ano?: number,
   ): VendaPorProduto[] => {
@@ -347,10 +398,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     if (mes && ano) {
       clientesFiltrados = clientes.filter((cliente) => {
-        // Para pagos, usar data_pagamento se disponível, senão usar data de cadastro
-        const dataCliente = cliente.status === "pago" && cliente.data_pagamento 
-          ? new Date(cliente.data_pagamento + 'T00:00:00')
-          : new Date(cliente.data + 'T00:00:00');
+        const dataCliente = obterDataCliente(cliente);
         const mesCliente = dataCliente.toLocaleDateString("pt-BR", {
           month: "long",
         });
@@ -360,14 +408,8 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     }
 
     const vendasPorProduto = clientesFiltrados.reduce((acc, cliente) => {
-      const valor = Number.parseFloat(
-        cliente.valor
-          .replace("R$", "")
-          .replace(".", "")
-          .replace(",", ".")
-          .trim(),
-      );
-      if (isNaN(valor)) return acc;
+      const valor = parsearValor(cliente.valor);
+      if (valor === 0) return acc;
 
       const produtoExistente = acc.find((v) => v.produto === cliente.produto);
       if (produtoExistente) {
@@ -395,9 +437,9 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     }
 
     return vendasPorProduto.sort((a, b) => b.valor - a.valor);
-  };
+  }, [clientes]);
 
-  const obterProgressoMetas = (mes: string, ano: number): ProgressoMeta[] => {
+  const obterProgressoMetas = useCallback((mes: string, ano: number): ProgressoMeta[] => {
     const progressos: ProgressoMeta[] = [];
 
     for (const meta of metas.filter((m) => m.mes === mes && m.ano === ano)) {
@@ -439,14 +481,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       );
 
       const vendido = clientesPagosDoMes.reduce((acc, cliente) => {
-        const valor = Number.parseFloat(
-          cliente.valor
-            .replace("R$", "")
-            .replace(".", "")
-            .replace(",", ".")
-            .trim(),
-        );
-        return isNaN(valor) ? acc : acc + valor;
+        return acc + parsearValor(cliente.valor);
       }, 0);
 
       const faltante = Math.max(0, meta.valorMeta - vendido);
@@ -478,7 +513,135 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     }
 
     return progressos;
-  };
+  }, [clientes, metas, users]);
+
+  // Novas funcionalidades
+  const obterEstatisticasGerais = useCallback(() => {
+    const totalVendas = dadosProcessados.totalVendas;
+    const totalClientes = dadosProcessados.totalClientes;
+    const ticketMedio = totalClientes > 0 ? totalVendas / totalClientes : 0;
+    
+    const clientesPagos = dadosProcessados.clientesPagos.length;
+    const taxaConversao = totalClientes > 0 ? (clientesPagos / totalClientes) * 100 : 0;
+
+    const vendasPorStatus = [
+      {
+        status: "Pago",
+        quantidade: dadosProcessados.clientesPagos.length,
+        valor: dadosProcessados.clientesPagos.reduce((acc, c) => acc + parsearValor(c.valor), 0)
+      },
+      {
+        status: "Pendente",
+        quantidade: dadosProcessados.clientesPendentes.length,
+        valor: dadosProcessados.clientesPendentes.reduce((acc, c) => acc + parsearValor(c.valor), 0)
+      },
+      {
+        status: "Cancelado",
+        quantidade: dadosProcessados.clientesCancelados.length,
+        valor: dadosProcessados.clientesCancelados.reduce((acc, c) => acc + parsearValor(c.valor), 0)
+      }
+    ];
+
+    return {
+      totalVendas,
+      totalClientes,
+      ticketMedio,
+      taxaConversao,
+      vendasPorStatus
+    };
+  }, [dadosProcessados]);
+
+  const obterTendencias = useCallback(() => {
+    const agora = new Date();
+    const mesAtual = agora.getMonth();
+    const anoAtual = agora.getFullYear();
+
+    // Vendas do mês atual vs mês anterior
+    const vendasMesAtual = clientes.filter(c => {
+      const data = obterDataCliente(c);
+      return data.getMonth() === mesAtual && data.getFullYear() === anoAtual;
+    }).reduce((acc, c) => acc + parsearValor(c.valor), 0);
+
+    const vendasMesAnterior = clientes.filter(c => {
+      const data = obterDataCliente(c);
+      const mesAnterior = mesAtual === 0 ? 11 : mesAtual - 1;
+      const anoAnterior = mesAtual === 0 ? anoAtual - 1 : anoAtual;
+      return data.getMonth() === mesAnterior && data.getFullYear() === anoAnterior;
+    }).reduce((acc, c) => acc + parsearValor(c.valor), 0);
+
+    const crescimentoMensal = vendasMesAnterior > 0 
+      ? ((vendasMesAtual - vendasMesAnterior) / vendasMesAnterior) * 100 
+      : 0;
+
+    // Produtos mais vendidos
+    const produtosMaisVendidos = obterVendasPorProduto().slice(0, 5);
+
+    // Vendedores top
+    const vendedoresTop = users
+      .filter(u => u.role === "user")
+      .map(user => {
+        const vendasUser = clientes.filter(c => c.criadoPor === user.id);
+        const totalVendas = vendasUser.reduce((acc, c) => acc + parsearValor(c.valor), 0);
+        return {
+          usuario: user.nome,
+          vendas: vendasUser.length,
+          valor: totalVendas
+        };
+      })
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 5);
+
+    return {
+      crescimentoMensal,
+      produtosMaisVendidos,
+      vendedoresTop
+    };
+  }, [clientes, users, obterVendasPorProduto]);
+
+  const exportarDados = useCallback((tipo: 'vendas' | 'metas' | 'comissoes') => {
+    try {
+      let dados: any[] = [];
+      let nomeArquivo = '';
+
+      switch (tipo) {
+        case 'vendas':
+          dados = clientes.map(c => ({
+            id: c.id,
+            nome: c.cliente,
+            produto: c.produto,
+            banco: c.banco,
+            valor: c.valor,
+            status: c.status,
+            data: c.data,
+            data_pagamento: c.data_pagamento,
+            vendedor: users.find(u => u.id === c.criadoPor)?.nome || 'N/A'
+          }));
+          nomeArquivo = `vendas_${new Date().toISOString().split('T')[0]}.json`;
+          break;
+        case 'metas':
+          dados = metas;
+          nomeArquivo = `metas_${new Date().toISOString().split('T')[0]}.json`;
+          break;
+        case 'comissoes':
+          const comissoesAtuais = calcularComissoes('Janeiro', 2024);
+          dados = comissoesAtuais;
+          nomeArquivo = `comissoes_${new Date().toISOString().split('T')[0]}.json`;
+          break;
+      }
+
+      const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nomeArquivo;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erro ao exportar dados:', error);
+    }
+  }, [clientes, users, metas, calcularComissoes]);
 
   return (
     <AnalyticsContext.Provider
@@ -499,6 +662,9 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         obterVendasPorPeriodo,
         obterVendasPorProduto,
         obterProgressoMetas,
+        obterEstatisticasGerais,
+        obterTendencias,
+        exportarDados,
       }}
     >
       {children}

@@ -68,3 +68,49 @@ export interface ProgressoMeta {
   mediaVendasDiaria: number;
   projecao: number;
 }
+
+// Novos tipos para funcionalidades melhoradas
+export interface EstatisticasGerais {
+  totalVendas: number;
+  totalClientes: number;
+  ticketMedio: number;
+  taxaConversao: number;
+  vendasPorStatus: VendaPorStatus[];
+}
+
+export interface VendaPorStatus {
+  status: string;
+  quantidade: number;
+  valor: number;
+}
+
+export interface Tendencia {
+  crescimentoMensal: number;
+  produtosMaisVendidos: VendaPorProduto[];
+  vendedoresTop: VendedorTop[];
+}
+
+export interface VendedorTop {
+  usuario: string;
+  vendas: number;
+  valor: number;
+}
+
+export interface FiltroAnalytics {
+  periodo: "semanal" | "quinzenal" | "mensal";
+  mes: string;
+  ano: number;
+  vendedor?: string;
+  produto?: string;
+  status?: string;
+}
+
+export interface DashboardMetrics {
+  vendasHoje: number;
+  vendasSemana: number;
+  vendasMes: number;
+  crescimentoVendas: number;
+  clientesNovos: number;
+  ticketMedio: number;
+  taxaConversao: number;
+}
