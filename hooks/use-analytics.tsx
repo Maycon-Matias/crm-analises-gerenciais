@@ -5,6 +5,7 @@ import type React from "react";
 import { useState, useEffect, createContext, useContext, useMemo, useCallback } from "react";
 import { useClientes } from "@/hooks/use-clientes";
 import { useAuth } from "@/hooks/use-auth";
+import { generateId } from "@/lib/utils";
 import type {
   Meta,
   RegraComissao,
@@ -19,9 +20,9 @@ type AnalyticsContextType = {
   metas: Meta[];
   regrasComissao: RegraComissao[];
   regrasComissaoBanco: RegraComissaoBanco[];
-  adicionarMeta: (meta: Omit<Meta, "id" | "criadaEm">) => void;
-  atualizarMeta: (meta: Meta) => void;
-  removerMeta: (id: string) => void;
+  adicionarMeta: (meta: Omit<Meta, "id" | "criadaEm">) => Promise<void>;
+  atualizarMeta: (meta: Meta) => Promise<void>;
+  removerMeta: (id: string) => Promise<void>;
   adicionarRegraComissao: (regra: Omit<RegraComissao, "id">) => void;
   atualizarRegraComissao: (regra: RegraComissao) => void;
   removerRegraComissao: (id: string) => void;
@@ -92,38 +93,24 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const { clientes } = useClientes();
   const { users } = useAuth();
 
-  // Carregar dados do localStorage
+  // Carregar metas do banco de dados
+  const carregarMetas = useCallback(async () => {
+    try {
+      const response = await fetch("/api/metas");
+      if (response.ok) {
+        const metasData = await response.json();
+        setMetas(metasData);
+      } else {
+        console.error("Erro ao carregar metas da API");
+      }
+    } catch (error) {
+      console.error("Erro ao carregar metas:", error);
+    }
+  }, []);
+
+  // Carregar dados do localStorage (apenas para regras de comissão)
   useEffect(() => {
     try {
-      const metasSalvas = localStorage.getItem("metas");
-      if (metasSalvas) {
-        setMetas(JSON.parse(metasSalvas));
-      } else {
-        // Metas de exemplo
-        const metasExemplo: Meta[] = [
-          {
-            id: "1",
-            usuario: "Amanda",
-            mes: "Janeiro",
-            ano: 2024,
-            valorMeta: 50000,
-            criadaEm: "2024-01-01",
-            tipo: "valor",
-          },
-          {
-            id: "2",
-            usuario: "Lais",
-            mes: "Janeiro",
-            ano: 2024,
-            valorMeta: 45000,
-            criadaEm: "2024-01-01",
-            tipo: "valor",
-          },
-        ];
-        setMetas(metasExemplo);
-        localStorage.setItem("metas", JSON.stringify(metasExemplo));
-      }
-
       const regrasSalvas = localStorage.getItem("regrasComissao");
       if (regrasSalvas) {
         setRegrasComissao(JSON.parse(regrasSalvas));
@@ -140,19 +127,16 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("regrasComissao", JSON.stringify(regrasExemplo));
       }
     } catch (error) {
-      console.error("Erro ao carregar dados do analytics:", error);
+      console.error("Erro ao carregar regras de comissão:", error);
     }
   }, []);
 
-  // Salvar dados no localStorage
+  // Carregar metas na inicialização
   useEffect(() => {
-    try {
-      localStorage.setItem("metas", JSON.stringify(metas));
-    } catch (error) {
-      console.error("Erro ao salvar metas:", error);
-    }
-  }, [metas]);
+    carregarMetas();
+  }, [carregarMetas]);
 
+  // Salvar regras de comissão no localStorage
   useEffect(() => {
     try {
       localStorage.setItem("regrasComissao", JSON.stringify(regrasComissao));
@@ -176,32 +160,70 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     };
   }, [clientes]);
 
-  const adicionarMeta = useCallback((meta: Omit<Meta, "id" | "criadaEm">) => {
-    const novaMeta: Meta = {
-      ...meta,
-      id: crypto.randomUUID(),
-      criadaEm: new Date().toISOString(),
-      tipo: "valor",
-    };
-    setMetas((prev) => [...prev, novaMeta]);
+  const adicionarMeta = useCallback(async (meta: Omit<Meta, "id" | "criadaEm">) => {
+    try {
+      const response = await fetch("/api/metas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...meta,
+          tipo: "valor",
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setMetas((prev) => [...prev, result.meta]);
+      } else {
+        console.error("Erro ao criar meta");
+      }
+    } catch (error) {
+      console.error("Erro ao criar meta:", error);
+    }
   }, []);
 
-  const atualizarMeta = useCallback((metaAtualizada: Meta) => {
-    setMetas((prev) =>
-      prev.map((meta) =>
-        meta.id === metaAtualizada.id ? metaAtualizada : meta,
-      ),
-    );
+  const atualizarMeta = useCallback(async (metaAtualizada: Meta) => {
+    try {
+      const response = await fetch(`/api/metas?id=${metaAtualizada.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(metaAtualizada),
+      });
+
+      if (response.ok) {
+        setMetas((prev) =>
+          prev.map((meta) =>
+            meta.id === metaAtualizada.id ? metaAtualizada : meta,
+          ),
+        );
+      } else {
+        console.error("Erro ao atualizar meta");
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar meta:", error);
+    }
   }, []);
 
-  const removerMeta = useCallback((id: string) => {
-    setMetas((prev) => prev.filter((meta) => meta.id !== id));
+  const removerMeta = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/metas?id=${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setMetas((prev) => prev.filter((meta) => meta.id !== id));
+      } else {
+        console.error("Erro ao remover meta");
+      }
+    } catch (error) {
+      console.error("Erro ao remover meta:", error);
+    }
   }, []);
 
   const adicionarRegraComissao = useCallback((regra: Omit<RegraComissao, "id">) => {
     const novaRegra: RegraComissao = {
       ...regra,
-      id: crypto.randomUUID(),
+      id: generateId(),
     };
     setRegrasComissao((prev) => [...prev, novaRegra]);
   }, []);
@@ -223,7 +245,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   ) => {
     const novaRegra: RegraComissaoBanco = {
       ...regra,
-      id: crypto.randomUUID(),
+      id: generateId(),
     };
     setRegrasComissaoBanco((prev) => [...prev, novaRegra]);
   }, []);

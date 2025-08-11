@@ -63,6 +63,7 @@ import { useSistema } from "@/hooks/use-sistema";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CSVImportWizard } from "@/components/csv-import-wizard";
 import { useToast } from "@/components/ui/use-toast";
+import { WebhookManager } from "@/components/webhook-manager";
 
 export default function ConfiguracoesPage() {
   const { user } = useAuth();
@@ -208,7 +209,7 @@ export default function ConfiguracoesPage() {
           </div>
 
           <Tabs defaultValue="geral" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5 h-12">
+            <TabsList className="grid w-full grid-cols-6 h-12">
               <TabsTrigger value="geral" className="flex items-center gap-2 text-sm">
                 <Settings className="h-4 w-4" />
                 <span className="hidden sm:inline">Geral</span>
@@ -220,6 +221,10 @@ export default function ConfiguracoesPage() {
               <TabsTrigger value="negocio" className="flex items-center gap-2 text-sm">
                 <Building className="h-4 w-4" />
                 <span className="hidden sm:inline">Negócio</span>
+              </TabsTrigger>
+              <TabsTrigger value="webhooks" className="flex items-center gap-2 text-sm">
+                <Bell className="h-4 w-4" />
+                <span className="hidden sm:inline">Webhooks</span>
               </TabsTrigger>
               <TabsTrigger value="backup" className="flex items-center gap-2 text-sm">
                 <Save className="h-4 w-4" />
@@ -624,6 +629,24 @@ export default function ConfiguracoesPage() {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            {/* Aba Webhooks */}
+            <TabsContent value="webhooks" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bell className="h-5 w-5" />
+                    Gerenciamento de Webhooks
+                  </CardTitle>
+                  <CardDescription>
+                    Configure webhooks para integração com sistemas externos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <WebhookManager />
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* Aba Importação */}

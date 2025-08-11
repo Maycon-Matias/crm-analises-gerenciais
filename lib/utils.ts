@@ -5,6 +5,58 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Função para gerar ID único que funciona em todos os ambientes
+export function generateId(): string {
+  // Verificar se crypto.randomUUID está disponível
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  
+  // Fallback para navegadores mais antigos
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// Função para formatar valores monetários
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+}
+
+// Função para parsear valores monetários
+export function parseCurrency(value: string): number {
+  if (!value) return 0;
+  
+  // Remove R$, espaços e converte vírgula para ponto
+  const cleanValue = value
+    .replace(/R\$\s*/g, '')
+    .replace(/\s/g, '')
+    .replace(/\./g, '')
+    .replace(',', '.');
+  
+  const parsed = parseFloat(cleanValue);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+// Função para obter mensagem aleatória do dashboard
+export function getRandomDashboardMessage(): string {
+  const messages = [
+    "Bem-vindo ao seu CRM! 🚀",
+    "Organize seus clientes de forma eficiente! 📊",
+    "Acompanhe suas vendas em tempo real! 💰",
+    "Gerencie suas metas com facilidade! 🎯",
+    "Sistema otimizado para seu sucesso! ⚡",
+  ];
+  
+  const randomIndex = Math.floor(Math.random() * messages.length);
+  return messages[randomIndex];
+}
+
 // Função para formatar data atual no formato YYYY-MM-DD sem problemas de fuso horário
 export function getDataAtualFormatada(): string {
   const dataAtual = new Date();

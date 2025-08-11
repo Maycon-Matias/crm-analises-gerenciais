@@ -72,33 +72,46 @@ export default function MetasPage() {
     "Dezembro",
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const valorMeta = Number.parseFloat(
       formData.valorMeta.replace(/[^\d,]/g, "").replace(",", "."),
     );
 
-    if (metaEditando) {
-      atualizarMeta({
-        ...metaEditando,
-        usuario: formData.usuario,
-        mes: formData.mes,
-        ano: formData.ano,
-        valorMeta,
+    try {
+      if (metaEditando) {
+        await atualizarMeta({
+          ...metaEditando,
+          usuario: formData.usuario,
+          mes: formData.mes,
+          ano: formData.ano,
+          valorMeta,
+        });
+      } else {
+        await adicionarMeta({
+          usuario: formData.usuario,
+          mes: formData.mes,
+          ano: formData.ano,
+          valorMeta,
+        });
+      }
+
+      setDialogAberto(false);
+      setMetaEditando(null);
+      setFormData({ usuario: "", mes: "", ano: 2024, valorMeta: "" });
+      
+      toast({
+        title: "Sucesso",
+        description: metaEditando ? "Meta atualizada com sucesso!" : "Meta criada com sucesso!",
       });
-    } else {
-      adicionarMeta({
-        usuario: formData.usuario,
-        mes: formData.mes,
-        ano: formData.ano,
-        valorMeta,
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar meta",
+        variant: "destructive",
       });
     }
-
-    setDialogAberto(false);
-    setMetaEditando(null);
-    setFormData({ usuario: "", mes: "", ano: 2024, valorMeta: "" });
   };
 
   const handleEditar = (meta: Meta) => {

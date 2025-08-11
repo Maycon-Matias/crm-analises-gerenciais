@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { SidebarLayout } from "@/components/sidebar-layout";
 import { Select } from "@/components/ui/select";
-import { getDashboardMessage } from "@/lib/utils";
+
 import { DashboardMessage } from "@/components/dashboard-message";
 import { GoalTracker } from "@/components/goal-tracker";
 import { VendedorMetaResumo } from "@/components/vendedor-meta-resumo";

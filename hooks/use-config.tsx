@@ -7,8 +7,9 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import type { ConfiguracaoSistema, CampoPersonalizado } from "@/types/config";
+import type { ConfiguracaoSistema, CampoPersonalizado, WebhookConfig } from "@/types/config";
 import { configuracaoPadrao } from "@/types/config";
+import { generateId } from "@/lib/utils";
 
 interface ConfigContextType {
   configuracao: ConfiguracaoSistema;
@@ -16,6 +17,9 @@ interface ConfigContextType {
   adicionarCampo: (campo: Omit<CampoPersonalizado, "id">) => void;
   removerCampo: (id: string) => void;
   atualizarCampo: (id: string, campo: Partial<CampoPersonalizado>) => void;
+  adicionarWebhook: (webhook: Omit<WebhookConfig, "id" | "criadoEm" | "criadoPor">) => void;
+  removerWebhook: (id: string) => void;
+  atualizarWebhook: (id: string, webhook: Partial<WebhookConfig>) => void;
   resetarConfiguracao: () => void;
 }
 
@@ -43,7 +47,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const adicionarCampo = (campo: Omit<CampoPersonalizado, "id">) => {
     const novoCampo: CampoPersonalizado = {
       ...campo,
-      id: crypto.randomUUID(),
+      id: generateId(),
     };
     setConfiguracao((prev) => ({
       ...prev,
@@ -72,6 +76,35 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const adicionarWebhook = (webhook: Omit<WebhookConfig, "id" | "criadoEm" | "criadoPor">) => {
+    const novoWebhook: WebhookConfig = {
+      ...webhook,
+      id: generateId(),
+      criadoEm: new Date().toISOString(),
+      criadoPor: "Sistema",
+    };
+    setConfiguracao((prev) => ({
+      ...prev,
+      webhooks: [...prev.webhooks, novoWebhook],
+    }));
+  };
+
+  const removerWebhook = (id: string) => {
+    setConfiguracao((prev) => ({
+      ...prev,
+      webhooks: prev.webhooks.filter((webhook) => webhook.id !== id),
+    }));
+  };
+
+  const atualizarWebhook = (id: string, webhookAtualizado: Partial<WebhookConfig>) => {
+    setConfiguracao((prev) => ({
+      ...prev,
+      webhooks: prev.webhooks.map((webhook) =>
+        webhook.id === id ? { ...webhook, ...webhookAtualizado } : webhook,
+      ),
+    }));
+  };
+
   const resetarConfiguracao = () => {
     setConfiguracao(configuracaoPadrao);
   };
@@ -84,6 +117,9 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         adicionarCampo,
         removerCampo,
         atualizarCampo,
+        adicionarWebhook,
+        removerWebhook,
+        atualizarWebhook,
         resetarConfiguracao,
       }}
     >

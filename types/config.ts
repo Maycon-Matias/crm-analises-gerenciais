@@ -9,6 +9,19 @@ export interface CampoPersonalizado {
   categoria: "cliente" | "produto" | "administrativo";
 }
 
+export interface WebhookConfig {
+  id: string;
+  nome: string;
+  url: string;
+  eventos: ("cliente.criado" | "cliente.atualizado" | "cliente.excluido" | "cliente.pago")[];
+  ativo: boolean;
+  headers?: Record<string, string>;
+  timeout: number; // em segundos
+  tentativas: number;
+  criadoEm: string;
+  criadoPor: string;
+}
+
 export interface ConfiguracaoSistema {
   camposPersonalizados: CampoPersonalizado[];
   camposObrigatorios: string[];
@@ -23,6 +36,7 @@ export interface ConfiguracaoSistema {
     camposIgnorados: string[];
     separadorCSV: string;
   };
+  webhooks: WebhookConfig[];
 }
 
 export const configuracaoPadrao: ConfiguracaoSistema = {
@@ -68,4 +82,5 @@ export const configuracaoPadrao: ConfiguracaoSistema = {
     camposIgnorados: [],
     separadorCSV: ",",
   },
+  webhooks: [],
 };

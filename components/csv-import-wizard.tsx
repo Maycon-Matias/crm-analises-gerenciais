@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import * as XLSX from "xlsx";
+import { generateId } from "@/lib/utils";
 
 interface CSVImportWizardProps {
   onImport: (dados: any[]) => void;
@@ -124,7 +125,7 @@ export function CSVImportWizard({ onImport, onCancel }: CSVImportWizardProps) {
       });
 
       // Adicionar campos padrão
-      objeto.id = crypto.randomUUID();
+      objeto.id = generateId();
       objeto.status = "pendente";
       objeto.mes = new Date((objeto.data || Date.now()) + 'T00:00:00').toLocaleDateString(
         "pt-BR",

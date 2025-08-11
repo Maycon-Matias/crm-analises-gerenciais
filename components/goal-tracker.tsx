@@ -110,34 +110,38 @@ export function GoalTracker({ mes, ano }: GoalTrackerProps) {
 
   const progresso = calcularProgresso();
 
-  const handleSave = () => {
-    // Salvar meta de quantidade
-    if (metaQuantidadeGeral) {
-      atualizarMeta({ ...metaQuantidadeGeral, valorMeta: metaQuantidade });
-    } else {
-      adicionarMeta({
-        usuario: "geral",
-        mes,
-        ano,
-        valorMeta: metaQuantidade,
-        tipo: "quantidade",
-      });
-    }
+  const handleSave = async () => {
+    try {
+      // Salvar meta de quantidade
+      if (metaQuantidadeGeral) {
+        await atualizarMeta({ ...metaQuantidadeGeral, valorMeta: metaQuantidade });
+      } else {
+        await adicionarMeta({
+          usuario: "geral",
+          mes,
+          ano,
+          valorMeta: metaQuantidade,
+          tipo: "quantidade",
+        });
+      }
 
-    // Salvar meta de valor
-    if (metaValorGeral) {
-      atualizarMeta({ ...metaValorGeral, valorMeta: metaValor });
-    } else {
-      adicionarMeta({
-        usuario: "geral",
-        mes,
-        ano,
-        valorMeta: metaValor,
-        tipo: "valor",
-      });
+      // Salvar meta de valor
+      if (metaValorGeral) {
+        await atualizarMeta({ ...metaValorGeral, valorMeta: metaValor });
+      } else {
+        await adicionarMeta({
+          usuario: "geral",
+          mes,
+          ano,
+          valorMeta: metaValor,
+          tipo: "valor",
+        });
+      }
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Erro ao salvar metas:", error);
     }
-    
-    setIsEditing(false);
   };
 
   const getStatusColor = (percentual: number) => {

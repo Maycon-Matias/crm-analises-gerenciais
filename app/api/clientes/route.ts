@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { dispararWebhooks } from "@/lib/webhook";
 
 // Função para verificar permissões do usuário
 function verificarPermissao(cliente: any, userId: string, userRole: string): boolean {
@@ -64,6 +65,10 @@ export async function POST(req: NextRequest) {
 
     const result = await collection.insertOne(body);
 
+    // Disparar webhook para cliente criado
+    const clienteComId = { ...body, id: result.insertedId.toString() };
+    await dispararWebhooks("cliente.criado", clienteComId);
+
     return NextResponse.json({ success: true, id: result.insertedId });
   } catch (error) {
     console.error("Erro ao cadastrar cliente:", error);
@@ -107,6 +112,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }
 
+    // Disparar webhook para cliente atualizado
+    const clienteAtualizado = { ...clienteAtual, ...dadosAtualizados, id };
+    await dispararWebhooks("cliente.atualizado", clienteAtualizado);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Erro ao atualizar cliente:", error);
@@ -144,6 +153,9 @@ export async function DELETE(req: NextRequest) {
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }
+
+    // Disparar webhook para cliente excluído
+    await dispararWebhooks("cliente.excluido", { id, ...clienteAtual });
 
     return NextResponse.json({ success: true });
   } catch (error) {
