@@ -96,12 +96,17 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   // Carregar metas do banco de dados
   const carregarMetas = useCallback(async () => {
     try {
+      console.log("Carregando metas da API...");
       const response = await fetch("/api/metas");
+      console.log("Resposta da API:", response.status, response.ok);
+      
       if (response.ok) {
         const metasData = await response.json();
+        console.log("Metas carregadas:", metasData);
         setMetas(metasData);
       } else {
-        console.error("Erro ao carregar metas da API");
+        const errorText = await response.text();
+        console.error("Erro ao carregar metas da API:", response.status, errorText);
       }
     } catch (error) {
       console.error("Erro ao carregar metas:", error);
@@ -162,20 +167,21 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
   const adicionarMeta = useCallback(async (meta: Omit<Meta, "id" | "criadaEm">) => {
     try {
+      console.log("Tentando criar meta:", meta);
+      
       const response = await fetch("/api/metas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...meta,
-          tipo: "valor",
-        }),
+        body: JSON.stringify(meta),
       });
 
       if (response.ok) {
         const result = await response.json();
+        console.log("Meta criada com sucesso:", result);
         setMetas((prev) => [...prev, result.meta]);
       } else {
-        console.error("Erro ao criar meta");
+        const errorText = await response.text();
+        console.error("Erro ao criar meta:", response.status, errorText);
       }
     } catch (error) {
       console.error("Erro ao criar meta:", error);

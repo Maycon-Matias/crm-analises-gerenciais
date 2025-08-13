@@ -107,7 +107,12 @@ export default function ComissoesPage() {
     vendedor: "",
   });
 
-
+  // Estados para filtros
+  const [filtros, setFiltros] = useState({
+    mes: new Date().toLocaleString("pt-BR", { month: "long" }),
+    ano: new Date().getFullYear(),
+    vendedor: "",
+  });
 
   // Calcular estatísticas de comissões
   const estatisticasComissoes = () => {

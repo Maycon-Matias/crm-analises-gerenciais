@@ -22,7 +22,7 @@ const usuariosPredefinidos: User[] = [
     nome: "Maycon",
     email: "admin@poracred.com",
     senha: "admin123",
-    role: "admin", // ← ÚNICO ADMINISTRADOR
+    role: "admin", // ← ADMINISTRADOR
   },
   {
     id: "2",
@@ -58,6 +58,13 @@ const usuariosPredefinidos: User[] = [
     email: "mariele@poracred.com",
     senha: "mariele123",
     role: "user",
+  },
+  {
+    id: "7",
+    nome: "Rodrigo",
+    email: "rodrigo@poracred.com",
+    senha: "rodrigo123",
+    role: "admin",
   },
 ];
 

@@ -38,8 +38,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
 
-  // Verificação explícita se o usuário é Maycon (o único administrador)
-  const isAdmin = user?.role === "admin" || user?.nome === "Maycon";
+  // Verificação se o usuário é administrador
+  const isAdmin = user?.role === "admin";
 
   return (
     <Sidebar {...props}>
