@@ -5,15 +5,7 @@ declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
-// Validação das variáveis de ambiente
-const requiredEnvVars = ['MONGODB_URI'];
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    throw new Error(`Variável de ambiente ${envVar} não está configurada`);
-  }
-}
-
-const uri = process.env.MONGODB_URI!;
+const uri = process.env.MONGODB_URI || "mongodb+srv://admin:admin123@poracred.lep058a.mongodb.net/crm?retryWrites=true&w=majority&appName=PoraCred";
 const options = {
   maxPoolSize: 10, // Máximo de conexões no pool
   serverSelectionTimeoutMS: 5000, // Timeout para seleção do servidor
