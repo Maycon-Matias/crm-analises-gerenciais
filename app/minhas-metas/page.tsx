@@ -11,6 +11,7 @@ import { SidebarLayout } from "@/components/sidebar-layout";
 import { useAuth } from "@/hooks/use-auth";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useClientes } from "@/hooks/use-clientes";
+import { isFontePrincipal } from "@/lib/fontes-config";
 import { Target, TrendingUp, Calendar, DollarSign, Users } from "lucide-react";
 
 export default function MinhasMetasPage() {
@@ -30,22 +31,29 @@ export default function MinhasMetasPage() {
   // Buscar meta do vendedor para o período selecionado
   const minhaMeta = metas.find(
     (meta) => meta.usuario === user?.nome && 
-              meta.mes === mesAtual && 
+              (meta.mes === mesAtual || 
+               meta.mes === mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1) || 
+               meta.mes === mesAtual.toLowerCase()) && 
               meta.ano === selectedYear
   );
 
   // Filtrar clientes do vendedor para o período selecionado
   const meusClientes = clientes.filter((cliente) => {
+    // Filtrar apenas clientes de fontes principais (não corretores)
+    if (!isFontePrincipal(cliente.fonte)) {
+      return false;
+    }
+    
     if (cliente.criadoPor !== user?.id) return false;
     
-    // Para clientes PAGOS: usar data_pagamento para cálculo
+    // Para clientes PAGOS: usar data_pagamento para cálculo de receita
     if (cliente.status === "pago" && cliente.data_pagamento) {
       const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
       return dataPagamento.getMonth() + 1 === selectedMonth && 
              dataPagamento.getFullYear() === selectedYear;
     }
     
-    // Para clientes PENDENTES/CANCELADOS: usar data de cadastro apenas para contagem
+    // Para clientes PENDENTES/CANCELADOS: usar data de cadastro para contagem
     const dataCadastro = new Date(cliente.data + 'T00:00:00');
     return dataCadastro.getMonth() + 1 === selectedMonth && 
            dataCadastro.getFullYear() === selectedYear;
@@ -55,7 +63,7 @@ export default function MinhasMetasPage() {
   const calcularProgresso = () => {
     if (!minhaMeta) return null;
 
-    // Somar apenas clientes PAGOS para o valor da meta
+    // Somar apenas clientes PAGOS para o valor da meta (usando data de pagamento)
     const clientesPagosDoMes = meusClientes.filter(cliente => 
       cliente.status === "pago" && cliente.data_pagamento
     );
@@ -74,8 +82,7 @@ export default function MinhasMetasPage() {
       valorMeta: minhaMeta.valorMeta,
       percentual: Math.min(percentual, 100),
       clientesPagos,
-      clientesPendentes,
-      totalClientes: meusClientes.length
+      clientesPendentes
     };
   };
 

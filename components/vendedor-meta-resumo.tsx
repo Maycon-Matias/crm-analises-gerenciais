@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useClientes } from "@/hooks/use-clientes";
+import { isFontePrincipal } from "@/lib/fontes-config";
 import { Target, TrendingUp, DollarSign, Users } from "lucide-react";
 import Link from "next/link";
 
@@ -29,9 +30,14 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
 
   // Filtrar clientes do vendedor para o período
   const meusClientes = clientes.filter((cliente) => {
+    // Filtrar apenas clientes de fontes principais (não corretores)
+    if (!isFontePrincipal(cliente.fonte)) {
+      return false;
+    }
+    
     if (cliente.criadoPor !== user?.id) return false;
     
-    // Para clientes PAGOS: usar data_pagamento para cálculo
+    // Para clientes PAGOS: usar data_pagamento para cálculo de receita
     if (cliente.status === "pago" && cliente.data_pagamento) {
       const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
       const mesPagamento = dataPagamento.toLocaleDateString("pt-BR", { month: "long" });
@@ -39,52 +45,49 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
       return mesPagamento === mes && anoPagamento === ano;
     }
     
-    // Para clientes PENDENTES/CANCELADOS: usar data de cadastro apenas para contagem
+    // Para clientes PENDENTES/CANCELADOS: usar data de cadastro para contagem
     const dataCadastro = new Date(cliente.data + 'T00:00:00');
     const mesCadastro = dataCadastro.toLocaleDateString("pt-BR", { month: "long" });
     const anoCadastro = dataCadastro.getFullYear();
     return mesCadastro === mes && anoCadastro === ano;
   });
 
-  // Calcular progresso
-  const calcularProgresso = () => {
-    if (!minhaMeta) return null;
-
-    // Somar apenas clientes PAGOS para o valor da meta
+  // Calcular valores
+  const calcularValores = () => {
+    // Para metas de valor: usar apenas clientes PAGOS (data de pagamento)
     const clientesPagosDoMes = meusClientes.filter(cliente => 
       cliente.status === "pago" && cliente.data_pagamento
     );
 
-    const valorAtual = clientesPagosDoMes.reduce((acc, cliente) => {
+    const valorRecebido = clientesPagosDoMes.reduce((acc, cliente) => {
       const valor = Number(cliente.valor.replace("R$", "").replace(/\./g, "").replace(",", "."));
       return acc + (isNaN(valor) ? 0 : valor);
     }, 0);
 
-    const percentual = (valorAtual / minhaMeta.valorMeta) * 100;
+    // Para contagem: usar todos os clientes (data de cadastro)
+    const totalClientes = meusClientes.length;
     const clientesPagos = clientesPagosDoMes.length;
     const clientesPendentes = meusClientes.filter(c => c.status === "pendente").length;
 
     return {
-      valorAtual,
-      valorMeta: minhaMeta.valorMeta,
-      percentual: Math.min(percentual, 100),
+      valorRecebido,
+      totalClientes,
       clientesPagos,
-      clientesPendentes,
-      totalClientes: meusClientes.length
+      clientesPendentes
     };
   };
 
-  const progresso = calcularProgresso();
+  const progresso = calcularValores();
 
   // Determinar status da meta
   const getStatusMeta = () => {
-    if (!progresso) return { status: "sem-meta", label: "Sem meta", color: "bg-gray-100 text-gray-600" };
+    if (!minhaMeta) return { status: "sem-meta", label: "Sem meta", color: "bg-gray-100 text-gray-600" };
     
-    if (progresso.percentual >= 100) {
+    if (progresso.valorRecebido >= minhaMeta.valorMeta) {
       return { status: "concluida", label: "Meta atingida!", color: "bg-green-100 text-green-800" };
-    } else if (progresso.percentual >= 75) {
+    } else if (progresso.valorRecebido >= minhaMeta.valorMeta * 0.75) {
       return { status: "proximo", label: "Próximo da meta", color: "bg-blue-100 text-blue-800" };
-    } else if (progresso.percentual >= 50) {
+    } else if (progresso.valorRecebido >= minhaMeta.valorMeta * 0.5) {
       return { status: "andamento", label: "Em andamento", color: "bg-yellow-100 text-yellow-800" };
     } else {
       return { status: "atrasado", label: "Precisa acelerar", color: "bg-red-100 text-red-800" };
@@ -150,10 +153,16 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-medium text-gray-700">Progresso</span>
               <span className="text-sm text-gray-600">
-                {progresso?.percentual.toFixed(1)}% concluído
+                {progresso?.valorRecebido.toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL"
+                })} de {minhaMeta.valorMeta.toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL"
+                })}
               </span>
             </div>
-            <Progress value={progresso?.percentual} className="h-2" />
+            <Progress value={(progresso?.valorRecebido / minhaMeta.valorMeta) * 100} className="h-2" />
           </div>
 
           {/* Métricas Rápidas */}
@@ -164,7 +173,7 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
                 <span className="text-xs text-gray-600">Atual</span>
               </div>
               <div className="text-lg font-bold text-blue-600">
-                {progresso?.valorAtual.toLocaleString("pt-BR", {
+                {progresso?.valorRecebido.toLocaleString("pt-BR", {
                   style: "currency",
                   currency: "BRL"
                 })}
@@ -187,7 +196,7 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
                 <span className="text-xs text-gray-600">Faltam</span>
               </div>
               <div className="text-lg font-bold text-purple-600">
-                {((minhaMeta.valorMeta - (progresso?.valorAtual || 0)) / 1000).toFixed(1)}k
+                {((minhaMeta.valorMeta - (progresso?.valorRecebido || 0)) / 1000).toFixed(1)}k
               </div>
             </div>
           </div>

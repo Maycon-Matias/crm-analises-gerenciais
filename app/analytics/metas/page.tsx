@@ -1,353 +1,711 @@
 "use client";
 
-import type React from "react";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { ProtectedLayout } from "@/components/protected-layout";
+import { SidebarLayout } from "@/components/sidebar-layout";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useAuth } from "@/hooks/use-auth";
-import { PlusCircle, Edit, Trash2, Target } from "lucide-react";
-import type { Meta } from "@/types/analytics";
-import { SidebarLayout } from "@/components/sidebar-layout";
+import { useClientes } from "@/hooks/use-clientes";
+import { PlusCircle, Edit, Trash2, Target, Users, DollarSign, Calendar, TrendingUp, CheckCircle, Plus } from "lucide-react";
 
 export default function MetasPage() {
   const { metas, adicionarMeta, atualizarMeta, removerMeta } = useAnalytics();
   const { users } = useAuth();
+  const { clientes } = useClientes();
+  
   const [dialogAberto, setDialogAberto] = useState(false);
-  const [metaEditando, setMetaEditando] = useState<Meta | null>(null);
+  const [metaEditando, setMetaEditando] = useState<any>(null);
   const [formData, setFormData] = useState({
     usuario: "",
     mes: "",
-    ano: 2024,
-    valorMeta: "",
+    ano: new Date().getFullYear(),
+    valorMeta: 0,
+    tipo: "valor" as "quantidade" | "valor"
   });
 
-  const vendedores = users.filter((user) => user.role === "user");
-
   const meses = [
-    "Janeiro",
-    "Fevereiro",
-    "Março",
-    "Abril",
-    "Maio",
-    "Junho",
-    "Julho",
-    "Agosto",
-    "Setembro",
-    "Outubro",
-    "Novembro",
-    "Dezembro",
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() + i);
 
-    const valorMeta = Number.parseFloat(
-      formData.valorMeta.replace(/[^\d,]/g, "").replace(",", "."),
+  // Função para obter número do mês
+  const getMesNumero = (mes: string): number => {
+    const mesIndex = meses.findIndex(m => 
+      m === mes || 
+      m.charAt(0).toUpperCase() + mes.slice(1).toLowerCase() === mes.toLowerCase()
     );
+    const resultado = mesIndex + 1;
+    console.log(`🔍 getMesNumero: mes="${mes}", index=${mesIndex}, resultado=${resultado}`);
+    return resultado;
+  };
 
+  // Função para calcular progresso de uma meta
+  const calcularProgressoMeta = (meta: any) => {
     try {
-      if (metaEditando) {
-        await atualizarMeta({
-          ...metaEditando,
-          usuario: formData.usuario,
-          mes: formData.mes,
-          ano: formData.ano,
-          valorMeta,
-        });
+      console.log("🔍 Calculando progresso para meta:", meta);
+      
+      let clientesFiltrados = clientes;
+      
+      // Filtrar por usuário (se não for meta geral)
+      if (meta.usuario !== "geral") {
+        const user = users?.find(u => u.nome === meta.usuario);
+        console.log("🔍 Usuário encontrado:", user);
+        if (user) {
+          clientesFiltrados = clientes.filter(c => c.criadoPor === user.id);
+          console.log("🔍 Clientes filtrados por usuário:", clientesFiltrados.length);
+        }
       } else {
-        await adicionarMeta({
-          usuario: formData.usuario,
-          mes: formData.mes,
-          ano: formData.ano,
-          valorMeta,
-        });
+        console.log("🔍 Meta geral - usando todos os clientes");
       }
 
-      setDialogAberto(false);
-      setMetaEditando(null);
-      setFormData({ usuario: "", mes: "", ano: 2024, valorMeta: "" });
-      
-      toast({
-        title: "Sucesso",
-        description: metaEditando ? "Meta atualizada com sucesso!" : "Meta criada com sucesso!",
+      // Filtrar por período
+      const clientesDoMes = clientesFiltrados.filter((cliente) => {
+        try {
+          // Para clientes PAGOS: usar data_pagamento para cálculo
+          if (cliente.status === "pago" && cliente.data_pagamento) {
+            const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
+            const mesPagamento = dataPagamento.getMonth() + 1;
+            const anoPagamento = dataPagamento.getFullYear();
+            const metaMes = getMesNumero(meta.mes);
+            const resultado = mesPagamento === metaMes && anoPagamento === meta.ano;
+            console.log(`🔍 Cliente ${cliente.cliente}: data_pagamento=${cliente.data_pagamento}, mes=${mesPagamento}, ano=${anoPagamento}, metaMes=${metaMes}, metaAno=${meta.ano}, resultado=${resultado}`);
+            return resultado;
+          }
+          
+          // Para clientes PENDENTES/CANCELADOS: usar data de cadastro apenas para contagem
+          const dataCadastro = new Date(cliente.data + 'T00:00:00');
+          const mesCadastro = dataCadastro.getMonth() + 1;
+          const anoCadastro = dataCadastro.getFullYear();
+          const metaMes = getMesNumero(meta.mes);
+          const resultado = mesCadastro === metaMes && anoCadastro === meta.ano;
+          console.log(`🔍 Cliente ${cliente.cliente}: data=${cliente.data}, mes=${mesCadastro}, ano=${anoCadastro}, metaMes=${metaMes}, metaAno=${meta.ano}, resultado=${resultado}`);
+          return resultado;
+        } catch (error) {
+          console.error("🔍 Erro ao processar cliente:", error);
+          return false;
+        }
       });
+
+      console.log("🔍 Clientes do mês filtrados:", clientesDoMes.length);
+
+      if (meta.tipo === "quantidade") {
+        // Meta de quantidade: contar todos os clientes do período
+        const atual = clientesDoMes.length;
+        const valorMeta = meta.valorMeta;
+        const percentual = valorMeta > 0 ? Math.min((atual / valorMeta) * 100, 100) : 0;
+        
+        console.log("🔍 Meta de quantidade:", { atual, valorMeta, percentual });
+        
+        return {
+          atual,
+          meta: valorMeta,
+          percentual,
+          faltante: Math.max(valorMeta - atual, 0)
+        };
+      } else {
+        // Meta de valor: somar apenas clientes PAGOS
+        const clientesPagosDoMes = clientesDoMes.filter(cliente => 
+          cliente.status === "pago" && cliente.data_pagamento
+        );
+
+        console.log("🔍 Clientes pagos do mês:", clientesPagosDoMes.length);
+
+        const atual = clientesPagosDoMes.reduce((acc, cliente) => {
+          try {
+            const valor = Number(cliente.valor.replace("R$", "").replace(/\./g, "").replace(",", "."));
+            console.log(`🔍 Cliente ${cliente.cliente}: valor=${cliente.valor}, parseado=${valor}`);
+            return acc + (isNaN(valor) ? 0 : valor);
+          } catch (error) {
+            console.error("🔍 Erro ao processar valor:", error);
+            return acc;
+          }
+        }, 0);
+
+        const valorMeta = meta.valorMeta;
+        const percentual = valorMeta > 0 ? Math.min((atual / valorMeta) * 100, 100) : 0;
+        
+        console.log("🔍 Meta de valor:", { atual, valorMeta, percentual });
+        
+        return {
+          atual,
+          meta: valorMeta,
+          percentual,
+          faltante: Math.max(valorMeta - atual, 0)
+        };
+      }
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao salvar meta",
-        variant: "destructive",
-      });
+      console.error("🔍 Erro ao calcular progresso da meta:", error);
+      return { atual: 0, meta: 0, percentual: 0, faltante: 0 };
     }
   };
 
-  const handleEditar = (meta: Meta) => {
-    setMetaEditando(meta);
+  // Função para obter status da meta
+  const getStatusMeta = (percentual: number) => {
+    if (percentual >= 100) {
+      return { 
+        status: "concluida", 
+        label: "Meta atingida!", 
+        color: "green",
+        icon: <CheckCircle className="h-4 w-4" />,
+        text: "Meta atingida!"
+      };
+    } else if (percentual >= 75) {
+      return { 
+        status: "proximo", 
+        label: "Próximo da meta", 
+        color: "blue",
+        icon: <TrendingUp className="h-4 w-4" />,
+        text: "Próximo da meta"
+      };
+    } else if (percentual >= 50) {
+      return { 
+        status: "andamento", 
+        label: "Em andamento", 
+        color: "yellow",
+        icon: <TrendingUp className="h-4 w-4" />,
+        text: "Em andamento"
+      };
+    } else {
+      return { 
+        status: "inicio", 
+        label: "Iniciando", 
+        color: "gray",
+        icon: <Target className="h-4 w-4" />,
+        text: "Iniciando"
+      };
+    }
+  };
+
+  const resetarFormulario = () => {
     setFormData({
-      usuario: meta.usuario,
-      mes: meta.mes,
-      ano: meta.ano,
-      valorMeta: meta.valorMeta.toString(),
+      usuario: "",
+      mes: "",
+      ano: new Date().getFullYear(),
+      valorMeta: 0,
+      tipo: "valor"
     });
+    setMetaEditando(null);
+  };
+
+  const abrirDialog = (meta?: any) => {
+    if (meta) {
+      setMetaEditando(meta);
+      setFormData({
+        usuario: meta.usuario,
+        mes: meta.mes,
+        ano: meta.ano,
+        valorMeta: Number(meta.valorMeta) || 0,
+        tipo: meta.tipo || "valor"
+      });
+    } else {
+      resetarFormulario();
+    }
     setDialogAberto(true);
   };
 
-  const handleNovaMeta = () => {
-    setMetaEditando(null);
-    setFormData({ usuario: "", mes: "", ano: 2024, valorMeta: "" });
-    setDialogAberto(true);
+  const fecharDialog = () => {
+    setDialogAberto(false);
+    resetarFormulario();
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.usuario || !formData.mes || !formData.valorMeta) {
+      alert("Por favor, preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    try {
+      const metaData = {
+        usuario: formData.usuario,
+        mes: formData.mes,
+        ano: formData.ano,
+        valorMeta: formData.valorMeta,
+        tipo: formData.tipo
+      };
+
+      if (metaEditando) {
+        await atualizarMeta({ ...metaEditando, ...metaData });
+      } else {
+        await adicionarMeta(metaData);
+      }
+
+      fecharDialog();
+    } catch (error) {
+      console.error("Erro ao salvar meta:", error);
+      alert("Erro ao salvar meta. Tente novamente.");
+    }
+  };
+
+  const handleExcluir = async (id: string) => {
+    if (confirm("Tem certeza que deseja excluir esta meta?")) {
+      try {
+        await removerMeta(id);
+      } catch (error) {
+        console.error("Erro ao excluir meta:", error);
+        alert("Erro ao excluir meta. Tente novamente.");
+      }
+    }
+  };
+
+  const getStatusColor = (tipo: string) => {
+    return tipo === "quantidade" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800";
+  };
+
+  const getIcon = (tipo: string) => {
+    return tipo === "quantidade" ? <Users className="h-4 w-4" /> : <DollarSign className="h-4 w-4" />;
+  };
+
+  const handleEdit = (meta: any) => {
+    abrirDialog(meta);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("Tem certeza que deseja excluir esta meta?")) {
+      try {
+        await removerMeta(id);
+      } catch (error) {
+        console.error("Erro ao excluir meta:", error);
+        alert("Erro ao excluir meta. Tente novamente.");
+      }
+    }
   };
 
   return (
     <ProtectedLayout adminOnly>
-      <div className="min-h-screen bg-gray-50">
-        <SidebarLayout>
-          <main className="container py-10 px-4">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-800">
-                  Gerenciar Metas
-                </h1>
-                <p className="text-gray-600 mt-1">
-                  Configure e acompanhe as metas dos vendedores
-                </p>
-              </div>
-              <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-                <DialogTrigger asChild>
-                  <Button
-                    className="bg-primary hover:bg-primary/90"
-                    onClick={handleNovaMeta}
+      <SidebarLayout>
+        <main className="container py-10 px-4">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-800">
+              Gerenciar Metas
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Configure e acompanhe as metas dos vendedores
+            </p>
+          </div>
+
+          {/* Botão para criar nova meta */}
+          <div className="mb-6">
+            <Button onClick={() => abrirDialog()} className="bg-primary hover:bg-primary/90">
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Nova Meta
+            </Button>
+          </div>
+
+          {/* Lista de metas existentes */}
+          <div className="grid gap-6">
+            {metas && metas.length > 0 ? (
+              metas.map((meta) => {
+                const progresso = calcularProgressoMeta(meta);
+                const status = getStatusMeta(progresso.percentual);
+                
+                return (
+                  <Card 
+                    key={meta.id} 
+                    className={`group hover:shadow-lg transition-all duration-300 border-2 ${
+                      status.color === 'green' ? 'border-green-200 hover:border-green-300' :
+                      status.color === 'blue' ? 'border-blue-200 hover:border-blue-300' :
+                      status.color === 'yellow' ? 'border-yellow-200 hover:border-yellow-300' :
+                      'border-gray-200 hover:border-gray-300'
+                    }`}
                   >
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Nova Meta
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {metaEditando ? "Editar Meta" : "Nova Meta"}
-                    </DialogTitle>
-                    <DialogDescription>
-                      {metaEditando
-                        ? "Atualize os dados da meta"
-                        : "Configure uma nova meta para o vendedor"}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                      <Label htmlFor="usuario">Vendedor</Label>
-                      <Select
-                        value={formData.usuario}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, usuario: value })
-                        }
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 space-y-4">
+                          {/* Header da Meta */}
+                          <div className="flex items-center gap-3">
+                            <div className={`p-3 rounded-full ${
+                              status.color === 'green' ? 'bg-green-100 text-green-600' :
+                              status.color === 'blue' ? 'bg-blue-100 text-blue-600' :
+                              status.color === 'yellow' ? 'bg-yellow-100 text-yellow-600' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>
+                              {meta.tipo === 'quantidade' ? (
+                                <Users className="h-5 w-5" />
+                              ) : (
+                                <DollarSign className="h-5 w-5" />
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-semibold">
+                                {meta.usuario === 'geral' ? 'Meta Geral da Empresa' : meta.usuario}
+                              </h3>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Calendar className="h-4 w-4" />
+                                {meta.mes} {meta.ano}
+                                <Badge variant="outline" className="ml-2">
+                                  {meta.tipo === 'quantidade' ? 'Quantidade' : 'Valor'}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Progresso da Meta */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">Progresso</span>
+                              <span className={`text-sm font-semibold ${
+                                status.color === 'green' ? 'text-green-600' :
+                                status.color === 'blue' ? 'text-blue-600' :
+                                status.color === 'yellow' ? 'text-yellow-600' :
+                                'text-gray-600'
+                              }`}>
+                                {progresso.percentual.toFixed(1)}%
+                              </span>
+                            </div>
+                            
+                            <Progress 
+                              value={progresso.percentual} 
+                              className={`h-3 ${
+                                status.color === 'green' ? 'bg-green-100' :
+                                status.color === 'blue' ? 'bg-blue-100' :
+                                status.color === 'yellow' ? 'bg-yellow-100' :
+                                'bg-gray-100'
+                              }`}
+                            />
+                            
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div className="bg-gray-50 p-3 rounded-lg">
+                                <p className="text-muted-foreground">Meta</p>
+                                <p className="font-semibold">
+                                  {meta.tipo === 'quantidade' 
+                                    ? `${meta.valorMeta} clientes`
+                                    : `R$ ${meta.valorMeta.toLocaleString()}`
+                                  }
+                                </p>
+                              </div>
+                              <div className="bg-gray-50 p-3 rounded-lg">
+                                <p className="text-muted-foreground">Atual</p>
+                                <p className="font-semibold">
+                                  {meta.tipo === 'quantidade' 
+                                    ? `${progresso.atual} clientes`
+                                    : `R$ ${progresso.atual.toLocaleString()}`
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Status Motivacional */}
+                          <div className={`p-3 rounded-lg border ${
+                            status.color === 'green' ? 'bg-green-50 border-green-200' :
+                            status.color === 'blue' ? 'bg-blue-50 border-blue-200' :
+                            status.color === 'yellow' ? 'bg-yellow-50 border-yellow-200' :
+                            'bg-gray-50 border-gray-200'
+                          }`}>
+                            <div className="flex items-center gap-2">
+                              {status.icon}
+                              <span className={`text-sm font-medium ${
+                                status.color === 'green' ? 'text-green-700' :
+                                status.color === 'blue' ? 'text-blue-700' :
+                                status.color === 'yellow' ? 'text-yellow-700' :
+                                'text-gray-700'
+                              }`}>
+                                {status.text}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Ações */}
+                        <div className="flex flex-col gap-2 ml-4">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(meta)}
+                            className="group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDelete(meta.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Excluir
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            ) : (
+              <Card className="p-12 text-center">
+                <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <Target className="h-12 w-12 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Nenhuma meta encontrada
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  Comece criando sua primeira meta para acompanhar o progresso da equipe.
+                </p>
+                <Button onClick={() => abrirDialog()}>
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Criar Primeira Meta
+                </Button>
+              </Card>
+            )}
+          </div>
+
+          {/* Dialog para criar/editar meta */}
+          {dialogAberto && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2">
+                    {metaEditando ? (
+                      <>
+                        <Edit className="h-5 w-5 text-primary" />
+                        Editar Meta
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-5 w-5 text-primary" />
+                        Nova Meta
+                      </>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Usuário */}
+                    <div className="space-y-2">
+                      <Label htmlFor="usuario" className="text-sm font-medium">
+                        Usuário
+                      </Label>
+                      <Select 
+                        value={formData.usuario} 
+                        onValueChange={(value) => setFormData({...formData, usuario: value})}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o vendedor" />
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Selecione o usuário" />
                         </SelectTrigger>
                         <SelectContent>
-                          {vendedores.map((vendedor) => (
-                            <SelectItem key={vendedor.id} value={vendedor.nome}>
-                              {vendedor.nome}
+                          <SelectItem value="geral">Meta Geral da Empresa</SelectItem>
+                          {users?.map((user) => (
+                            <SelectItem key={user.id} value={user.nome}>
+                              {user.nome}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
 
-                    <div>
-                      <Label htmlFor="mes">Mês</Label>
-                      <Select
-                        value={formData.mes}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, mes: value })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o mês" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {meses.map((mes) => (
-                            <SelectItem key={mes} value={mes}>
-                              {mes}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    {/* Mês e Ano */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="mes" className="text-sm font-medium">
+                          Mês
+                        </Label>
+                        <Select 
+                          value={formData.mes} 
+                          onValueChange={(value) => setFormData({...formData, mes: value})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Mês" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {meses.map((mes) => (
+                              <SelectItem key={mes} value={mes}>
+                                {mes}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="ano" className="text-sm font-medium">
+                          Ano
+                        </Label>
+                        <Select 
+                          value={formData.ano.toString()} 
+                          onValueChange={(value) => setFormData({...formData, ano: parseInt(value)})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Ano" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[2025, 2026, 2027, 2028, 2029].map((ano) => (
+                              <SelectItem key={ano} value={ano.toString()}>
+                                {ano}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
-                    <div>
-                      <Label htmlFor="ano">Ano</Label>
-                      <Select
-                        value={formData.ano.toString()}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, ano: Number(value) })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="2023">2023</SelectItem>
-                          <SelectItem value="2024">2024</SelectItem>
-                          <SelectItem value="2025">2025</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    {/* Tipo de Meta */}
+                    <div className="space-y-2">
+                      <Label htmlFor="tipo" className="text-sm font-medium">
+                        Tipo de Meta
+                      </Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div 
+                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                            formData.tipo === 'quantidade' 
+                              ? 'border-primary bg-primary/5' 
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => setFormData({...formData, tipo: 'quantidade'})}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-full ${
+                              formData.tipo === 'quantidade' ? 'bg-primary text-white' : 'bg-gray-100'
+                            }`}>
+                              <Users className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Quantidade</p>
+                              <p className="text-sm text-muted-foreground">Número de clientes</p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div 
+                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                            formData.tipo === 'valor' 
+                              ? 'border-primary bg-primary/5' 
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => setFormData({...formData, tipo: 'valor'})}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-full ${
+                              formData.tipo === 'valor' ? 'bg-primary text-white' : 'bg-gray-100'
+                            }`}>
+                              <DollarSign className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Valor</p>
+                              <p className="text-sm text-muted-foreground">Em reais</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    <div>
-                      <Label htmlFor="valorMeta">Valor da Meta</Label>
-                      <Input
-                        id="valorMeta"
-                        placeholder="R$ 0,00"
-                        value={formData.valorMeta}
-                        onChange={(e) =>
+                    {/* Valor da Meta */}
+                    <div className="space-y-2">
+                      <Label htmlFor="valorMeta" className="text-sm font-medium">
+                        {formData.tipo === 'quantidade' ? 'Quantidade de Clientes' : 'Valor da Meta (R$)'}
+                      </Label>
+                      <div className="relative">
+                        {formData.tipo === 'valor' && (
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                            R$
+                          </span>
+                        )}
+                        <Input
+                          id="valorMeta"
+                          type="number"
+                          value={formData.valorMeta}
+                          onChange={(e) => setFormData({...formData, valorMeta: Number(e.target.value) || 0})}
+                          min="1"
+                          className={formData.tipo === 'valor' ? 'pl-12' : ''}
+                          placeholder={formData.tipo === 'quantidade' ? 'Ex: 50' : 'Ex: 100000'}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {formData.tipo === 'quantidade' 
+                          ? 'Digite o número total de clientes desejados'
+                          : 'Digite o valor total em reais (sem pontos ou vírgulas)'
+                        }
+                      </p>
+                    </div>
+
+                    {/* Botões */}
+                    <div className="flex gap-3 pt-4">
+                      <Button 
+                        type="submit" 
+                        className="flex-1"
+                        disabled={!formData.usuario || !formData.mes || !formData.ano || !formData.tipo || !formData.valorMeta}
+                      >
+                        {metaEditando ? (
+                          <>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Atualizar Meta
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Criar Meta
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => {
+                          fecharDialog();
                           setFormData({
-                            ...formData,
-                            valorMeta: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setDialogAberto(false)}
+                            usuario: "",
+                            mes: "",
+                            ano: 2025,
+                            valorMeta: 0,
+                            tipo: "quantidade"
+                          });
+                        }}
                       >
                         Cancelar
                       </Button>
-                      <Button
-                        type="submit"
-                        className="bg-primary hover:bg-primary/90"
-                      >
-                        {metaEditando ? "Atualizar" : "Criar"} Meta
-                      </Button>
                     </div>
                   </form>
-                </DialogContent>
-              </Dialog>
+                </CardContent>
+              </Card>
             </div>
+          )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Metas Cadastradas
-                </CardTitle>
-                <CardDescription>
-                  Lista de todas as metas configuradas para os vendedores
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {metas.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Vendedor</TableHead>
-                        <TableHead>Período</TableHead>
-                        <TableHead>Valor da Meta</TableHead>
-                        <TableHead>Criada em</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {metas.map((meta) => (
-                        <TableRow key={meta.id}>
-                          <TableCell className="font-medium">
-                            {meta.usuario}
-                          </TableCell>
-                          <TableCell>
-                            {meta.mes} {meta.ano}
-                          </TableCell>
-                          <TableCell>
-                            {meta.valorMeta.toLocaleString("pt-BR", {
-                              style: "currency",
-                              currency: "BRL",
-                            })}
-                          </TableCell>
-                          <TableCell>
-                            {new Date(meta.criadaEm + 'T00:00:00').toLocaleDateString(
-                              "pt-BR",
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => handleEditar(meta)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="icon"
-                                onClick={() => removerMeta(meta.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-8">
-                    <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">
-                      Nenhuma meta cadastrada ainda
-                    </p>
-                    <Button
-                      className="bg-primary hover:bg-primary/90"
-                      onClick={handleNovaMeta}
-                    >
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Criar Primeira Meta
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </main>
-        </SidebarLayout>
-      </div>
+          {/* Debug das Metas (mantido para referência) */}
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle>Debug das Metas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <strong>Metas carregadas:</strong> {metas?.length || 0}
+                </div>
+                <div>
+                  <strong>Usuários carregados:</strong> {users?.length || 0}
+                </div>
+                <div>
+                  <strong>Clientes carregados:</strong> {clientes?.length || 0}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    alert("🔍 Botão Debug clicado!");
+                    console.log("🔍 Forçando recarregamento das metas...");
+                    console.log("🔍 Metas atuais:", metas);
+                    console.log("🔍 Users atuais:", users);
+                    console.log("🔍 Clientes atuais:", clientes);
+                  }}
+                >
+                  Debug Metas
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </SidebarLayout>
     </ProtectedLayout>
   );
 }

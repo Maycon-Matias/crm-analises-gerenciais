@@ -29,8 +29,20 @@ import {
 } from "@/components/ui/dialog";
 
 export default function ClientesPage() {
-  const { clientes, removerCliente } = useClientes();
+  console.log("🚀 Componente ClientesPage sendo renderizado");
+  
+  const { clientes, removerCliente, exportarParaCSV, exportarParaHTML } = useClientes();
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  
+  console.log("📊 Estado inicial:", { 
+    totalClientes: clientes.length, 
+    isAdmin, 
+    userId: user?.id 
+  });
+
+  // Debug removido para produção
+
   const [busca, setBusca] = useState("");
   const [statusFiltro, setStatusFiltro] = useState("todos");
   const [mesFiltro, setMesFiltro] = useState("todos");
@@ -38,6 +50,8 @@ export default function ClientesPage() {
   const [dataPagamentoEspecifica, setDataPagamentoEspecifica] = useState("");
   const [mesPagamentoFiltro, setMesPagamentoFiltro] = useState("todos");
   const [usuarioFiltro, setUsuarioFiltro] = useState("todos");
+  const [fonteFiltro, setFonteFiltro] = useState("todos");
+  const [tipoFonteFiltro, setTipoFonteFiltro] = useState("todos");
   const [mostrarFiltrosAvancados, setMostrarFiltrosAvancados] = useState(false);
   const [filtrosRenderizados, setFiltrosRenderizados] = useState(false);
   const [clienteSelecionado, setClienteSelecionado] = useState<any>(null);
@@ -45,6 +59,8 @@ export default function ClientesPage() {
 
   // Obter lista de meses únicos para filtros
   const mesesUnicos = [...new Set(clientes.map(c => c.mes))].sort();
+  
+  // Meses de pagamento (apenas para clientes pagos)
   const mesesPagamentoUnicos = [...new Set(clientes
     .filter(c => c.status === "pago" && c.data_pagamento)
     .map(c => {
@@ -52,14 +68,15 @@ export default function ClientesPage() {
       return dataPagamento.toLocaleDateString('pt-BR', { month: 'long' });
     })
   )].sort();
+  
   const usuariosUnicos = [...new Set(clientes.map(c => c.usuarios))].sort();
+  const fontesUnicas = [...new Set(clientes.map(c => c.fonte))];
 
   // Controlar renderização dos filtros avançados
   useEffect(() => {
     if (mostrarFiltrosAvancados) {
       setFiltrosRenderizados(true);
     } else {
-      // Delay para permitir animação de saída
       const timer = setTimeout(() => {
         setFiltrosRenderizados(false);
       }, 150);
@@ -67,44 +84,146 @@ export default function ClientesPage() {
     }
   }, [mostrarFiltrosAvancados]);
 
-  const clientesFiltrados = clientes.filter(
-    (cliente) => {
-      const pertenceAoUsuario = user?.role === "admin" || cliente.criadoPor === user?.id;
-      
-      // Filtro de busca
-      const buscaMatch =
-        cliente.cliente.toLowerCase().includes(busca.toLowerCase()) ||
-        cliente.produto.toLowerCase().includes(busca.toLowerCase()) ||
-        cliente.banco.toLowerCase().includes(busca.toLowerCase()) ||
-        cliente.fonte.toLowerCase().includes(busca.toLowerCase());
-      
-      // Filtro de status
-      const statusMatch = statusFiltro === "todos" || cliente.status === statusFiltro;
-      
-      // Filtro de mês de cadastro
-      const mesMatch = mesFiltro === "todos" || cliente.mes === mesFiltro;
-      
-      // Filtro de data específica de cadastro
-      const dataMatch = !dataEspecifica || cliente.data === dataEspecifica;
-      
-      // Filtro de data específica de pagamento
-      const dataPagamentoMatch = !dataPagamentoEspecifica || 
-        (cliente.status === "pago" && cliente.data_pagamento === dataPagamentoEspecifica);
-      
-      // Filtro de mês de pagamento
-      const mesPagamentoMatch = mesPagamentoFiltro === "todos" || 
-        (cliente.status === "pago" && cliente.data_pagamento && 
-         new Date(cliente.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' }) === mesPagamentoFiltro);
-      
-      // Filtro de usuário - apenas para administradores
-      const usuarioMatch = user?.role === "admin" 
-        ? (usuarioFiltro === "todos" || cliente.usuarios === usuarioFiltro)
-        : true; // Para vendedores, sempre true pois só veem seus próprios clientes
-      
-      return pertenceAoUsuario && buscaMatch && statusMatch && mesMatch && 
-             dataMatch && dataPagamentoMatch && mesPagamentoMatch && usuarioMatch;
+  // DEBUG: Monitorar quando clientes são carregados
+  useEffect(() => {
+    console.log("📥 Clientes carregados:", clientes.length);
+    if (clientes.length > 0) {
+      console.log("🔍 Primeiro cliente:", clientes[0]);
     }
-  );
+  }, [clientes]);
+
+  // Função de busca SIMPLES e DIRETA
+  const buscarCliente = (cliente: any, termoBusca: string) => {
+    if (!termoBusca || termoBusca.trim() === '') return true;
+    
+    const busca = termoBusca.toLowerCase().trim();
+    
+    // DEBUG: Log detalhado para cada cliente
+    console.log("🔍 Verificando cliente:", {
+      nome: cliente.cliente,
+      busca: busca,
+      temCliente: !!cliente.cliente,
+      tipoCliente: typeof cliente.cliente,
+      match: cliente.cliente && cliente.cliente.toLowerCase().includes(busca)
+    });
+    
+    // Busca direta no nome do cliente
+    if (cliente.cliente && cliente.cliente.toLowerCase().includes(busca)) {
+      console.log("✅ Match encontrado para:", cliente.cliente);
+      return true;
+    }
+    
+    // Busca no produto
+    if (cliente.produto && cliente.produto.toLowerCase().includes(busca)) {
+      console.log("✅ Match encontrado no produto:", cliente.produto);
+      return true;
+    }
+    
+    // Busca no banco
+    if (cliente.banco && cliente.banco.toLowerCase().includes(busca)) {
+      console.log("✅ Match encontrado no banco:", cliente.banco);
+      return true;
+    }
+    
+    // Busca na fonte
+    if (cliente.fonte && cliente.fonte.toLowerCase().includes(busca)) {
+      console.log("✅ Match encontrado na fonte:", cliente.fonte);
+      return true;
+    }
+    
+    console.log("❌ Nenhum match encontrado para:", cliente.cliente);
+    return false;
+  };
+
+  // Filtragem SIMPLIFICADA
+  const clientesFiltrados = clientes.filter((cliente) => {
+    // DEBUG: Log para ver quantos clientes estão sendo processados
+    if (busca && busca.trim() !== '') {
+      console.log("🔍 Processando cliente:", cliente.cliente, "| Total de clientes:", clientes.length);
+    }
+    
+    // 1. Verificar se pertence ao usuário (SIMPLIFICADO PARA TESTE)
+    let pertenceAoUsuario = true;
+    if (!isAdmin) {
+      // Teste de comparação mais detalhado
+      const comparacao = cliente.criadoPor === user?.id;
+      console.log(`🔍 Cliente ${cliente.cliente}:`, {
+        criadoPor: cliente.criadoPor,
+        userId: user?.id,
+        comparacao,
+        tipoCriadoPor: typeof cliente.criadoPor,
+        tipoUserId: typeof user?.id
+      });
+      
+      pertenceAoUsuario = comparacao;
+    }
+    
+    if (!pertenceAoUsuario) {
+      console.log(`❌ Cliente ${cliente.cliente} não pertence ao usuário ${user?.id}. CriadoPor: ${cliente.criadoPor}`);
+      return false;
+    }
+    console.log(`✅ Cliente ${cliente.cliente} pertence ao usuário ${user?.id}`);
+    
+    // 2. Verificar busca
+    const buscaMatch = buscarCliente(cliente, busca);
+    if (!buscaMatch) return false;
+    
+    // 3. Verificar outros filtros
+    if (statusFiltro !== "todos" && cliente.status !== statusFiltro) return false;
+    if (mesFiltro !== "todos" && cliente.mes !== mesFiltro) return false;
+    if (dataEspecifica && cliente.data !== dataEspecifica) return false;
+    if (dataPagamentoEspecifica && (!cliente.data_pagamento || cliente.data_pagamento !== dataPagamentoEspecifica)) return false;
+    if (mesPagamentoFiltro !== "todos" && (!cliente.data_pagamento || new Date(cliente.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' }) !== mesPagamentoFiltro)) return false;
+    if (usuarioFiltro !== "todos" && cliente.usuarios !== usuarioFiltro) return false;
+    if (fonteFiltro !== "todos" && cliente.fonte !== fonteFiltro) return false;
+    if (tipoFonteFiltro !== "todos") {
+      if (tipoFonteFiltro === "principal" && cliente.fonte.includes("Corretor")) return false;
+      if (tipoFonteFiltro === "corretor" && !cliente.fonte.includes("Corretor")) return false;
+    }
+    
+    return true;
+  });
+
+  // DEBUG: Monitorar mudanças na busca (movido para depois da declaração)
+  useEffect(() => {
+    console.log("🔄 Busca mudou para:", busca);
+    console.log("📊 Total de clientes filtrados:", clientesFiltrados.length);
+  }, [busca, clientesFiltrados.length]);
+
+  // DEBUG: Monitorar carregamento de clientes
+  useEffect(() => {
+    console.log("👤 Usuário atual:", user);
+    console.log("📋 Total de clientes carregados:", clientes.length);
+    console.log("🔍 Clientes filtrados:", clientesFiltrados.length);
+    console.log("👥 É admin?", isAdmin);
+    
+    if (clientes.length > 0) {
+      console.log("📝 Primeiro cliente:", clientes[0]);
+      console.log("🏷️ Clientes por criador:", clientes.map(c => ({ cliente: c.cliente, criadoPor: c.criadoPor })));
+      
+      // Debug específico para comparação de IDs
+      console.log("🔍 Debug IDs:", {
+        userId: user?.id,
+        userType: typeof user?.id,
+        primeiroClienteCriadoPor: clientes[0].criadoPor,
+        primeiroClienteCriadoPorType: typeof clientes[0].criadoPor,
+        comparacao: user?.id === clientes[0].criadoPor
+      });
+      
+      // Teste de comparação de IDs
+      const testeIds = clientes.slice(0, 5).map(c => ({
+        cliente: c.cliente,
+        criadoPor: c.criadoPor,
+        userId: user?.id,
+        comparacao: c.criadoPor === user?.id,
+        tipoCriadoPor: typeof c.criadoPor,
+        tipoUserId: typeof user?.id
+      }));
+      console.log("🧪 Teste de comparação de IDs:", testeIds);
+    }
+  }, [clientes, clientesFiltrados, user, isAdmin]);
+
+  // Debug removido para produção
 
   const limparFiltros = () => {
     setBusca("");
@@ -113,8 +232,9 @@ export default function ClientesPage() {
     setDataEspecifica("");
     setDataPagamentoEspecifica("");
     setMesPagamentoFiltro("todos");
-    // Só resetar filtro de usuário para administradores
-    if (user?.role === "admin") {
+    setFonteFiltro("todos");
+    setTipoFonteFiltro("todos");
+    if (isAdmin) {
       setUsuarioFiltro("todos");
     }
   };
@@ -124,16 +244,23 @@ export default function ClientesPage() {
     setModalAberto(true);
   };
 
-  // Função para converter valor string (ex: 'R$ 2.901,90') para número
+  // Função para converter valor string para número
   function parseValor(valor: string) {
-    if (typeof valor === "number") return valor;
-    if (typeof valor === "string") {
-      return Number(valor.replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
+    try {
+      if (typeof valor === "number") return valor;
+      if (typeof valor === "string") {
+        const valorLimpo = valor.replace("R$", "").replace(/\./g, "").replace(",", ".").trim();
+        const numero = Number(valorLimpo);
+        return isNaN(numero) ? 0 : numero;
+      }
+      return 0;
+    } catch (error) {
+      console.error("Erro ao parsear valor:", valor, error);
+      return 0;
     }
-    return 0;
   }
 
-  // Totais baseados nos clientes filtrados (não todos os clientes)
+  // Totais baseados nos clientes filtrados
   const totalPago = clientesFiltrados
     .filter(c => c.status === "pago")
     .reduce((acc, c) => acc + parseValor(c.valor), 0);
@@ -148,6 +275,41 @@ export default function ClientesPage() {
     <ProtectedLayout>
       <SidebarLayout>
         <div className="container mx-auto py-10 px-4">
+          {/* Indicador de status dos clientes */}
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-lg font-medium text-blue-800 mb-2">Status dos Clientes</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="font-medium">Total carregados:</span> {clientes.length}
+              </div>
+              <div>
+                <span className="font-medium">Filtrados:</span> {clientesFiltrados.length}
+              </div>
+              <div>
+                <span className="font-medium">Usuário:</span> {user?.nome || 'N/A'}
+              </div>
+              <div>
+                <span className="font-medium">Role:</span> {user?.role || 'N/A'}
+              </div>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <Button 
+                onClick={() => window.location.reload()} 
+                variant="outline" 
+                size="sm"
+              >
+                🔄 Recarregar
+              </Button>
+              <Button 
+                onClick={() => console.log('Estado atual:', { user, clientes, clientesFiltrados })} 
+                variant="outline" 
+                size="sm"
+              >
+                📊 Debug Console
+              </Button>
+            </div>
+          </div>
+
           {/* Cards de resumo para todos os usuários */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="border rounded-lg p-6 flex flex-col items-start">
@@ -172,9 +334,94 @@ export default function ClientesPage() {
               </span>
             </div>
           </div>
+
+          {/* Card de resumo por tipo de fonte - VERSÃO LIMPA */}
+          <div className="mb-6">
+            <Card className="bg-blue-50 border border-blue-200">
+              <CardContent className="p-4">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-blue-900 flex items-center justify-center gap-2">
+                    📊 Resumo por Tipo de Fonte
+                  </h3>
+                  <div className="grid grid-cols-3 gap-4 mt-4">
+                    <div>
+                      <div className="text-2xl font-bold text-blue-600">
+                        {clientesFiltrados.length}
+                      </div>
+                      <div className="text-sm text-blue-700">Total</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {clientesFiltrados.filter(c => c.fonte && !c.fonte.includes("Corretor")).length}
+                      </div>
+                      <div className="text-sm text-green-700">Principais</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-amber-600">
+                        {clientesFiltrados.filter(c => c.fonte && c.fonte.includes("Corretor")).length}
+                      </div>
+                      <div className="text-sm text-amber-700">Corretores</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Card adicional para ADMIN - Estatísticas Gerais do Sistema */}
+          {isAdmin && (
+            <div className="mb-6">
+              <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200">
+                <CardContent className="p-4">
+                  <div className="text-center mb-3">
+                    <h3 className="text-lg font-semibold text-purple-900">
+                      👑 Visão Geral do Sistema (Admin)
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-purple-900">
+                        {clientes.length}
+                      </div>
+                      <div className="text-sm text-purple-700">
+                        Total Geral
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-green-900">
+                        {clientes.filter(c => c.fonte && !c.fonte.includes("Corretor")).length}
+                      </div>
+                      <div className="text-sm text-green-700">
+                        Principais Geral
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-amber-900">
+                        {clientes.filter(c => c.fonte && c.fonte.includes("Corretor")).length}
+                      </div>
+                      <div className="text-sm text-amber-700">
+                        Corretores Geral
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-blue-900">
+                        {[...new Set(clientes.map(c => c.criadoPor))].length}
+                      </div>
+                      <div className="text-sm text-blue-700">
+                        Vendedores Ativos
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between bg-primary/10">
-              <CardTitle className="text-2xl text-primary">Gerenciar Clientes</CardTitle>
+              <CardTitle className="text-2xl text-primary">
+                Gerenciar Clientes {!isAdmin && "(Seus)"} {isAdmin && "(Todos)"}
+              </CardTitle>
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
@@ -184,6 +431,24 @@ export default function ClientesPage() {
                   <Filter className="h-4 w-4" />
                   Filtros Avançados
                 </Button>
+                {clientesFiltrados.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="border-green-500 text-green-600 hover:bg-green-50"
+                    onClick={() => exportarParaCSV(clientesFiltrados)}
+                  >
+                    📊 Exportar CSV
+                  </Button>
+                )}
+                {clientesFiltrados.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                    onClick={() => exportarParaHTML(clientesFiltrados)}
+                  >
+                    🌐 Exportar HTML
+                  </Button>
+                )}
                 <Link href="/clientes/novo">
                   <Button className="bg-primary hover:bg-primary/90">
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -202,9 +467,26 @@ export default function ClientesPage() {
                     placeholder="Buscar clientes..."
                     className="pl-8"
                     value={busca}
-                    onChange={(e) => setBusca(e.target.value)}
+                    onChange={(e) => {
+                      const valor = e.target.value;
+                      console.log("🔄 Input onChange chamado:", valor);
+                      setBusca(valor);
+                    }}
                   />
+                  {/* Indicador de busca */}
+                  {busca && (
+                    <div className="absolute right-2 top-2 text-xs text-gray-500">
+                      {clientesFiltrados.length} resultado{clientesFiltrados.length !== 1 ? 's' : ''}
+                    </div>
+                  )}
                 </div>
+                
+                {/* Indicador de busca ativa */}
+                {busca && (
+                  <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded text-sm text-green-800">
+                    🔍 Busca ativa: "{busca}" - {clientesFiltrados.length} cliente(s) encontrado(s)
+                  </div>
+                )}
                 <Select value={statusFiltro} onValueChange={setStatusFiltro}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Status" />
@@ -217,6 +499,41 @@ export default function ClientesPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+               {/* Indicador de debug da busca - REMOVIDO */}
+               {/* {busca && (
+                 <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                   <p className="text-sm text-yellow-800">
+                     <strong>🔍 Busca Ativa:</strong> "{busca}" | 
+                     Total de clientes: {clientes.length} | 
+                     Filtrados: {clientesFiltrados.length} | 
+                     Admin: {isAdmin ? "Sim" : "Não"} |
+                     Renderizações: {renderCount}
+                   </p>
+                   <div className="mt-2 p-2 bg-white rounded border">
+                     <p className="text-xs text-gray-600">
+                       <strong>Teste Direto:</strong><br/>
+                       Clientes com "{busca}" no nome: {
+                         clientes.filter(c => buscarCliente(c, busca)).length
+                       }<br/>
+                       Primeiros 3 clientes: {
+                         clientes.slice(0, 3).map(c => c.cliente).join(", ")
+                       }
+                     </p>
+                   </div>
+                   
+                   <div className="mt-2 p-2 bg-blue-50 rounded border">
+                     <p className="text-xs text-blue-600">
+                       <strong>Estado da Busca:</strong><br/>
+                       Valor atual: "{busca}"<br/>
+                       Tipo: {typeof busca}<br/>
+                       Comprimento: {busca.length}<br/>
+                       É string vazia: {busca === "" ? "Sim" : "Não"}
+                     </p>
+                   </div>
+                 </div>
+               )} */}
+
 
               {/* Filtros Avançados */}
               {filtrosRenderizados && (
@@ -279,22 +596,69 @@ export default function ClientesPage() {
                     </div>
 
                     {/* Usuário - Apenas para Administradores */}
-                    {user?.role === "admin" && (
+                    {isAdmin && (
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-1 block">Usuário</label>
+                        <label className="text-sm font-medium text-gray-700 mb-1 block">Vendedor</label>
                         <Select value={usuarioFiltro} onValueChange={setUsuarioFiltro}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Todos os usuários" />
+                            <SelectValue placeholder="Todos os vendedores" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="todos">Todos os usuários</SelectItem>
+                            <SelectItem value="todos">👥 Todos os vendedores</SelectItem>
                             {usuariosUnicos.map(usuario => (
-                              <SelectItem key={usuario} value={usuario}>{usuario}</SelectItem>
+                              <SelectItem key={usuario} value={usuario}>
+                                👤 {usuario}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                     )}
+
+                    {/* Filtro de Fonte (fontes individuais) */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Fonte</label>
+                      <Select value={fonteFiltro} onValueChange={setFonteFiltro}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todas as fontes" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todos">Todas as fontes</SelectItem>
+                          {fontesUnicas.map(fonte => (
+                            <SelectItem key={fonte} value={fonte}>{fonte}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Filtro de Tipo de Fonte (Principais vs Corretores) - VERSÃO ATUALIZADA */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        {isAdmin ? "🔍 Tipo de Fontes" : "Tipo de Fontes"}
+                      </label>
+                      <Select value={tipoFonteFiltro} onValueChange={(value) => {
+                        setTipoFonteFiltro(value);
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todos os tipos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todos">🌐 Todos os tipos</SelectItem>
+                          <SelectItem value="principal">🎯 Principais (contam para metas)</SelectItem>
+                          <SelectItem value="corretor">⚠️ Corretores (não contam para metas)</SelectItem>
+                          {isAdmin && (
+                            <>
+                              <SelectItem value="corretor-sim">⚠️ Apenas Corretores</SelectItem>
+                              <SelectItem value="corretor-nao">🎯 Apenas Principais</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {/* Debug info */}
+                      <div className="text-xs text-gray-500 mt-1">
+                        Tipo atual: {tipoFonteFiltro} | isAdmin: {isAdmin ? "✅" : "❌"}
+                      </div>
+                    </div>
 
                     {/* Botão Limpar Filtros */}
                     <div className="flex items-end">
@@ -325,8 +689,8 @@ export default function ClientesPage() {
                           <TableHead>Data</TableHead>
                           <TableHead>Mês</TableHead>
                           <TableHead>Vendedor</TableHead>
-                          {user?.role === "admin" && <TableHead>CPF</TableHead>}
-                          {user?.role === "admin" && <TableHead>Telefone</TableHead>}
+                          {isAdmin && <TableHead>CPF</TableHead>}
+                          {isAdmin && <TableHead>Telefone</TableHead>}
                           <TableHead>Observações</TableHead>
                           <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
@@ -347,212 +711,144 @@ export default function ClientesPage() {
                             </TableCell>
                             <TableCell>{cliente.produto}</TableCell>
                             <TableCell>{cliente.banco}</TableCell>
-                            <TableCell>{cliente.fonte}</TableCell>
-                            <TableCell>{(!isNaN(Number(cliente.valor)) && cliente.valor !== "") ? Number(cliente.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : cliente.valor}</TableCell>
                             <TableCell>
-                              {cliente.status === "pago"
-                                ? (cliente.data_pagamento
-                                    ? new Date(cliente.data_pagamento + 'T00:00:00').toLocaleDateString("pt-BR")
-                                    : new Date(cliente.data + 'T00:00:00').toLocaleDateString("pt-BR") + " (s/ data pagto)" )
-                                : new Date(cliente.data + 'T00:00:00').toLocaleDateString("pt-BR")}
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  cliente.fonte && cliente.fonte.includes("Corretor")
+                                    ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                    : "bg-green-100 text-green-800 border border-green-200"
+                                }`}>
+                                  {cliente.fonte && cliente.fonte.includes("Corretor") ? "⚠️ Corretor" : "🎯 Principal"}
+                                </span>
+                                {cliente.fonte}
+                              </div>
                             </TableCell>
+                            <TableCell>{cliente.valor}</TableCell>
+                            <TableCell>{cliente.data}</TableCell>
                             <TableCell>{cliente.mes}</TableCell>
-                            <TableCell>{cliente.usuarios || "-"}</TableCell>
-                            {user?.role === "admin" && (
-                              <TableCell>
-                                {cliente.cpf ? (
-                                  <span className="text-sm text-gray-600">{cliente.cpf}</span>
-                                ) : (
-                                  <span className="text-gray-400 text-sm">-</span>
-                                )}
-                              </TableCell>
-                            )}
-                            {user?.role === "admin" && (
-                              <TableCell>
-                                {cliente.telefone ? (
-                                  <span className="text-sm text-gray-600">{cliente.telefone}</span>
-                                ) : (
-                                  <span className="text-gray-400 text-sm">-</span>
-                                )}
-                              </TableCell>
-                            )}
-                            <TableCell>
-                              {user?.role === "admin" ? (
-                                cliente.observacoes ? (
-                                  <div className="max-w-xs">
-                                    <p className="text-sm text-gray-600 truncate" title={cliente.observacoes}>
-                                      {cliente.observacoes}
-                                    </p>
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-400 text-sm">-</span>
-                                )
-                              ) : (
-                                <span className="text-gray-400 text-sm">-</span>
-                              )}
-                            </TableCell>
+                            <TableCell>{cliente.usuarios || cliente.criadoPor}</TableCell>
+                            {isAdmin && <TableCell>{cliente.cpf || "-"}</TableCell>}
+                            {isAdmin && <TableCell>{cliente.telefone || "-"}</TableCell>}
+                            <TableCell>{cliente.observacoes || "-"}</TableCell>
                             <TableCell className="text-right">
-                              {user?.role && user.role.toLowerCase() === "admin" ? (
-                                <div className="flex justify-end gap-2">
-                                  <Link href={`/clientes/editar/${cliente.id}`}>
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => abrirModalCliente(cliente)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                {isAdmin && (
+                                  <>
+                                    <Link href={`/clientes/editar/${cliente.id}`}>
+                                      <Button variant="outline" size="sm">
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                    </Link>
                                     <Button
                                       variant="outline"
-                                      size="icon"
-                                      className="border-primary text-primary hover:bg-primary/10"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (confirm("Tem certeza que deseja remover este cliente?")) {
+                                          removerCliente(cliente.id);
+                                        }
+                                      }}
+                                      className="text-red-600 hover:text-red-700"
                                     >
-                                      <Edit className="h-4 w-4" />
-                                      <span className="sr-only">Editar</span>
+                                      <Trash2 className="h-4 w-4" />
                                     </Button>
-                                  </Link>
-                                  <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    onClick={() => removerCliente(cliente.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Remover</span>
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => abrirModalCliente(cliente)}
-                                    className="border-blue-500 text-blue-500 hover:bg-blue-50"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                    <span className="sr-only">Ver dados</span>
-                                  </Button>
-                                </div>
-                              )}
+                                  </>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
-                  <div className="mt-4 text-sm text-gray-500">
-                    Mostrando {clientesFiltrados.length} de {clientes.length} clientes
+                  <div className="mt-4 text-sm text-gray-600 text-center">
+                    {fonteFiltro !== "todos" && `Filtrado por: ${fonteFiltro}`}
+                    {fonteFiltro === "todos" && `Mostrando ${clientesFiltrados.length} cliente${clientesFiltrados.length !== 1 ? 's' : ''}`}
                   </div>
                 </>
               ) : (
                 <div className="text-center py-8">
                   <p className="text-gray-500">Nenhum cliente encontrado com os filtros aplicados.</p>
+                  <Button variant="outline" onClick={limparFiltros} className="mt-2">
+                    Limpar Filtros
+                  </Button>
                 </div>
               )}
             </CardContent>
           </Card>
-        </div>
 
-        {/* Modal para visualizar dados do cliente */}
-        <Dialog open={modalAberto} onOpenChange={setModalAberto}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Dados do Cliente
-              </DialogTitle>
-              <DialogDescription>
-                Informações detalhadas do cliente selecionado
-              </DialogDescription>
-            </DialogHeader>
-            
-            {clienteSelecionado && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Cliente</label>
-                    <p className="text-sm text-gray-900">{clienteSelecionado.cliente}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Produto</label>
-                    <p className="text-sm text-gray-900">{clienteSelecionado.produto}</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Banco</label>
-                    <p className="text-sm text-gray-900">{clienteSelecionado.banco}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Fonte</label>
-                    <p className="text-sm text-gray-900">{clienteSelecionado.fonte}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Valor</label>
-                    <p className="text-sm text-gray-900">
-                      {(!isNaN(Number(clienteSelecionado.valor)) && clienteSelecionado.valor !== "") 
-                        ? Number(clienteSelecionado.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) 
-                        : clienteSelecionado.valor}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Status</label>
-                    <p className="text-sm text-gray-900 capitalize">{clienteSelecionado.status}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Data</label>
-                    <p className="text-sm text-gray-900">
-                      {new Date(clienteSelecionado.data + 'T00:00:00').toLocaleDateString("pt-BR")}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Mês</label>
-                    <p className="text-sm text-gray-900">{clienteSelecionado.mes}</p>
-                  </div>
-                </div>
-
-                {clienteSelecionado.data_pagamento && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Data do Pagamento</label>
-                    <p className="text-sm text-gray-900">
-                      {new Date(clienteSelecionado.data_pagamento + 'T00:00:00').toLocaleDateString("pt-BR")}
-                    </p>
-                  </div>
-                )}
-
-                <div className="border-t pt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Informações de Contato</h4>
-                  
-                  <div className="space-y-3">
+          {/* Modal de Detalhes do Cliente */}
+          <Dialog open={modalAberto} onOpenChange={setModalAberto}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Detalhes do Cliente</DialogTitle>
+                <DialogDescription>
+                  Informações completas sobre o cliente selecionado.
+                </DialogDescription>
+              </DialogHeader>
+              {clienteSelecionado && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-700">CPF</label>
-                      {clienteSelecionado.cpf ? (
-                        <p className="text-sm text-gray-900">{clienteSelecionado.cpf}</p>
-                      ) : (
-                        <p className="text-sm text-gray-500 italic">Não informado</p>
-                      )}
+                      <label className="text-sm font-medium text-gray-700">Cliente</label>
+                      <p className="text-sm text-gray-900">{clienteSelecionado.cliente}</p>
                     </div>
-                    
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Telefone</label>
-                      {clienteSelecionado.telefone ? (
-                        <p className="text-sm text-gray-900">{clienteSelecionado.telefone}</p>
-                      ) : (
-                        <p className="text-sm text-gray-500 italic">Não informado</p>
-                      )}
+                      <label className="text-sm font-medium text-gray-700">Produto</label>
+                      <p className="text-sm text-gray-900">{clienteSelecionado.produto}</p>
                     </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Banco</label>
+                      <p className="text-sm text-gray-900">{clienteSelecionado.banco}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Valor</label>
+                      <p className="text-sm text-gray-900">{clienteSelecionado.valor}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Status</label>
+                      <p className="text-sm text-gray-900">{clienteSelecionado.status}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Data</label>
+                      <p className="text-sm text-gray-900">{clienteSelecionado.data}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Mês</label>
+                      <p className="text-sm text-gray-900">{clienteSelecionado.mes}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Fonte</label>
+                      <p className="text-sm text-gray-900">{clienteSelecionado.fonte}</p>
+                    </div>
+                    {isAdmin && (
+                      <>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">CPF</label>
+                          <p className="text-sm text-gray-900">{clienteSelecionado.cpf || "-"}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Telefone</label>
+                          <p className="text-sm text-gray-900">{clienteSelecionado.telefone || "-"}</p>
+                        </div>
+                      </>
+                    )}
                   </div>
-                </div>
-
-                {clienteSelecionado.observacoes && (
-                  <div className="border-t pt-4">
+                  <div>
                     <label className="text-sm font-medium text-gray-700">Observações</label>
-                    <p className="text-sm text-gray-900 mt-1">{clienteSelecionado.observacoes}</p>
+                    <p className="text-sm text-gray-900">{clienteSelecionado.observacoes || "Nenhuma observação"}</p>
                   </div>
-                )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </div>
       </SidebarLayout>
     </ProtectedLayout>
   );

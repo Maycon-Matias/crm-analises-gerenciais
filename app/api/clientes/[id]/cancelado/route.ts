@@ -1,0 +1,28 @@
+import { NextRequest, NextResponse } from "next/server";
+import clientPromise from "@/lib/mongodb";
+import { ObjectId } from "mongodb";
+
+// PUT - Marcar como cancelado
+export async function PUT(_req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const client = await clientPromise;
+    const db = client.db("crm");
+    const collection = db.collection("clientes");
+
+    const result = await collection.updateOne(
+      { _id: new ObjectId(params.id) },
+      { $set: { status: "cancelado" } }
+    );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Erro ao marcar como cancelado:", error);
+    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+  }
+}
+
+

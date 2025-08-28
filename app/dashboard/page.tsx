@@ -1,470 +1,666 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { ProtectedLayout } from "@/components/protected-layout";
+import { SidebarLayout } from "@/components/sidebar-layout";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { useAuth } from "@/hooks/use-auth";
 import { useClientes } from "@/hooks/use-clientes";
-import { useAnalytics } from "@/hooks/use-analytics";
-import {
-  PlusCircle,
-  FileSpreadsheet,
-  Users,
-  CreditCard,
+import { 
+  TrendingUp, 
+  Users, 
+  DollarSign, 
+  Target, 
+  Calendar,
   CheckCircle,
   Clock,
+  AlertCircle,
+  Star,
   BarChart3,
+  Activity,
+  Zap,
+  Calculator
 } from "lucide-react";
-import { SidebarLayout } from "@/components/sidebar-layout";
-import { Select } from "@/components/ui/select";
-
-import { DashboardMessage } from "@/components/dashboard-message";
-import { GoalTracker } from "@/components/goal-tracker";
-import { VendedorMetaResumo } from "@/components/vendedor-meta-resumo";
-import React from "react";
-
-// Função utilitária para parsear datas em 'YYYY-MM-DD' ou 'DD/MM/YYYY'
-function parseDataCliente(data: string): Date | null {
-  if (!data) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(data)) {
-    // Formato ISO
-    return new Date(data);
-  } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(data)) {
-    // Formato brasileiro DD/MM/YYYY
-    const [dia, mes, ano] = data.split("/").map(Number);
-    return new Date(ano, mes - 1, dia);
-  }
-  return null;
-}
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { clientes, exportarParaCSV } = useClientes();
-  const { metas } = useAnalytics();
-  const [stats, setStats] = useState({
-    total: 0,
-    pendentes: 0,
-    pagos: 0,
-    valorTotal: 0,
-    meusClientes: 0,
-  });
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [valoresMes, setValoresMes] = useState({ pagos: 0, pendentes: 0 });
-  const [now, setNow] = useState<Date | null>(null);
+  const { clientes } = useClientes();
 
-  const isAdmin = user?.role === "admin";
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Filtro de clientes por usuário - simplificado para evitar crashes
-  const clientesFiltrados = React.useMemo(() => {
-    if (!user) return [];
-    if (isAdmin) return clientes;
-    return clientes.filter((c) => c.criadoPor === user.id);
-  }, [clientes, user, isAdmin]);
-
-  const mesAtual = new Date(selectedYear, selectedMonth - 1).toLocaleString("pt-BR", { month: "long" });
-
+  // Debug: mostrar dados carregados
   useEffect(() => {
-    try {
-      // Sempre use todos os clientesFiltrados para os cards de resumo
-      const total = clientesFiltrados.length;
-      const pendentes = clientesFiltrados.filter((c) => c.status === "pendente").length;
-      const pagos = clientesFiltrados.filter((c) => c.status === "pago").length;
-      const valorTotal = clientesFiltrados.reduce((acc, cliente) => {
-        try {
-          const valor = Number.parseFloat(
-            cliente.valor
-              .replace("R$", "")
-              .replace(".", "")
-              .replace(",", ".")
-              .trim(),
-          );
-          return isNaN(valor) ? acc : acc + valor;
-        } catch {
-          return acc;
-        }
-      }, 0);
-      setStats({
-        total,
-        pendentes,
-        pagos,
-        valorTotal,
-        meusClientes: total,
-      });
-    } catch (error) {
-      console.error("Erro ao calcular stats:", error);
-      setStats({
-        total: 0,
-        pendentes: 0,
-        pagos: 0,
-        valorTotal: 0,
-        meusClientes: 0,
-      });
+    if (user) {
+      // Remover logs desnecessários
     }
-  }, [clientesFiltrados]);
+  }, [user, clientes]);
 
-  useEffect(() => {
-    if (clientesFiltrados.length > 0) {
-      const pagos = clientesFiltrados.filter((c) => {
-        // Para pagos, usar data_pagamento se disponível, senão usar data de cadastro
-        const dataParaFiltro = c.status === "pago" && c.data_pagamento 
-          ? new Date(c.data_pagamento + 'T00:00:00') 
-          : new Date(c.data + 'T00:00:00');
-        return (
-          c.status === "pago" &&
-          dataParaFiltro.getMonth() + 1 === selectedMonth &&
-          dataParaFiltro.getFullYear() === selectedYear
-        );
-      });
-      const pendentes = clientesFiltrados.filter((c) => {
-        const data = new Date(c.data + 'T00:00:00');
-        return (
-          c.status === "pendente" &&
-          data.getMonth() + 1 === selectedMonth &&
-          data.getFullYear() === selectedYear
-        );
-      });
-      const soma = (arr: any[]): number =>
-        arr.reduce((acc: number, cliente: any) => {
-          const valor = Number.parseFloat(
-            cliente.valor
-              .replace("R$", "")
-              .replace(".", "")
-              .replace(",", ".")
-              .trim(),
-          );
-          return isNaN(valor) ? acc : acc + valor;
-        }, 0);
-      setValoresMes({ pagos: soma(pagos), pendentes: soma(pendentes) });
-    } else {
-      setValoresMes({ pagos: 0, pendentes: 0 });
+  // Estatísticas dos clientes - FILTRAR POR USUÁRIO E MÊS ATUAL
+  const hoje = new Date();
+  const mesAtual = hoje.toLocaleDateString('pt-BR', { month: 'long' });
+  const anoAtual = hoje.getFullYear();
+  
+  // Primeiro filtrar por usuário (admin vê todos, vendedor vê apenas os seus)
+  const clientesDoUsuario = user?.role === "admin" 
+    ? clientes 
+    : clientes?.filter(c => c.criadoPor === user?.id) || [];
+  
+  // SEÇÃO 1: CLIENTES CADASTRADOS NO MÊS (usa data de cadastro)
+  const clientesCadastradosNoMes = clientesDoUsuario?.filter(c => {
+    const dataCadastro = new Date(c.data + 'T00:00:00');
+    return dataCadastro.getMonth() === hoje.getMonth() && dataCadastro.getFullYear() === hoje.getFullYear();
+  }) || [];
+
+  // SEÇÃO 2: RECEITA RECEBIDA NO MÊS (usa data de pagamento)
+  const receitaRecebidaNoMes = clientesDoUsuario?.filter(c => {
+    if (c.status !== "pago" || !c.data_pagamento) return false;
+    const dataPagamento = new Date(c.data_pagamento + 'T00:00:00');
+    return dataPagamento.getMonth() === hoje.getMonth() && dataPagamento.getFullYear() === hoje.getFullYear();
+  }) || [];
+
+  // Estatísticas de CLIENTES CADASTRADOS no mês
+  const estatisticasCadastro = {
+    total: clientesCadastradosNoMes.length,
+    pagos: clientesCadastradosNoMes.filter(c => c.status === "pago").length,
+    pendentes: clientesCadastradosNoMes.filter(c => c.status === "pendente").length,
+    cancelados: clientesCadastradosNoMes.filter(c => c.status === "cancelado").length,
+  };
+
+  // Estatísticas de RECEITA RECEBIDA no mês
+  const estatisticasReceita = {
+    total: receitaRecebidaNoMes.length, // Clientes PAGOS no mês (usando data de pagamento)
+    valor: receitaRecebidaNoMes.reduce((acc, c) => {
+      const valor = Number(c.valor.replace("R$", "").replace(/\./g, "").replace(",", "."));
+      return acc + (isNaN(valor) ? 0 : valor);
+    }, 0),
+  };
+
+  // Calcular porcentagens baseadas nos clientes cadastrados no mês
+  const porcentagens = {
+    pagos: estatisticasCadastro.total > 0 ? (estatisticasCadastro.pagos / estatisticasCadastro.total) * 100 : 0,
+    pendentes: estatisticasCadastro.total > 0 ? (estatisticasCadastro.pendentes / estatisticasCadastro.total) * 100 : 0,
+    cancelados: estatisticasCadastro.total > 0 ? (estatisticasCadastro.cancelados / estatisticasCadastro.total) * 100 : 0,
+  };
+
+  // Top fontes de clientes - APENAS DOS CADASTRADOS NO MÊS
+  const topFontes = clientesCadastradosNoMes.reduce((acc: Record<string, number>, cliente: any) => {
+    const fonte = cliente.fonte || "Não informado";
+    acc[fonte] = (acc[fonte] || 0) + 1;
+    return acc;
+  }, {});
+
+  const topFontesArray = Object.entries(topFontes)
+    .sort(([,a]: [string, unknown], [,b]: [string, unknown]) => (b as number) - (a as number))
+    .slice(0, 5);
+
+  // VALORES DOS CLIENTES CADASTRADOS NO MÊS
+  const valorTotalCadastrados = clientesCadastradosNoMes.reduce((acc: number, c: any) => {
+    const valor = Number(c.valor.replace("R$", "").replace(/\./g, "").replace(",", "."));
+    return acc + (isNaN(valor) ? 0 : valor);
+  }, 0);
+
+  const valorPagoCadastrados = clientesCadastradosNoMes.filter((c: any) => c.status === "pago").reduce((acc: number, c: any) => {
+    const valor = Number(c.valor.replace("R$", "").replace(/\./g, "").replace(",", "."));
+    return acc + (isNaN(valor) ? 0 : valor);
+  }, 0);
+
+  const valorPendenteCadastrados = clientesCadastradosNoMes.filter((c: any) => c.status === "pendente").reduce((acc: number, c: any) => {
+    const valor = Number(c.valor.replace("R$", "").replace(/\./g, "").replace(",", "."));
+    return acc + (isNaN(valor) ? 0 : valor);
+  }, 0);
+
+  // Calcular metas baseadas nos clientes cadastrados no mês
+  const metasCalculadas = {
+    quantidade: {
+      atual: estatisticasCadastro.total,
+      meta: Math.max(estatisticasCadastro.total, 50) // Meta mínima de 50 para o mês
+    },
+    valor: {
+      atual: valorTotalCadastrados,
+      meta: Math.max(valorTotalCadastrados, 50000) // Meta mínima de R$ 50.000 para o mês
     }
-  }, [clientesFiltrados, selectedMonth, selectedYear]);
+  };
 
-  useEffect(() => {
-    setNow(new Date());
-  }, []);
+  // Função para obter cor baseada no status
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pago": return "bg-green-100 text-green-800 border-green-200";
+      case "pendente": return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "cancelado": return "bg-red-100 text-red-800 border-red-200";
+      default: return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
 
-  // Cálculo de clientes do mês e do dia
-  const clientesDoMes = clientesFiltrados.filter((c) => {
-    // Para pagos, usar data_pagamento se disponível, senão usar data de cadastro
-    const dataParaFiltro = c.status === "pago" && c.data_pagamento 
-      ? parseDataCliente(c.data_pagamento)
-      : parseDataCliente(c.data);
+  // Função para obter ícone baseado no status
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "pago": return <CheckCircle className="h-4 w-4" />;
+      case "pendente": return <Clock className="h-4 w-4" />;
+      case "cancelado": return <AlertCircle className="h-4 w-4" />;
+      default: return <Clock className="h-4 w-4" />;
+    }
+  };
+
+  if (isLoading) {
     return (
-      dataParaFiltro &&
-      dataParaFiltro.getMonth() + 1 === selectedMonth &&
-      dataParaFiltro.getFullYear() === selectedYear
+      <ProtectedLayout>
+        <SidebarLayout>
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Carregando dashboard...</p>
+            </div>
+          </div>
+        </SidebarLayout>
+      </ProtectedLayout>
     );
-  });
-  const clientesHoje = now
-    ? clientesDoMes.filter((c) => {
-        const data = new Date(c.data + 'T00:00:00');
-        return (
-          data.getDate() === now.getDate() &&
-          data.getMonth() === now.getMonth() &&
-          data.getFullYear() === now.getFullYear()
-        );
-      }).length
-    : 0;
-  // Exemplo de meta mensal (pode ser dinâmico futuramente)
-  const metaMensal = 20; // Valor fixo para exemplo
-
-  // Cálculo do progresso conforme tipo de meta
-  const progressoMeta = metaMensal > 0 ? (clientesDoMes.length / metaMensal) * 100 : 0;
-  let mensagem = "";
-  if (progressoMeta < 100) {
-    mensagem = `Você está ${100 - progressoMeta}% abaixo da meta de ${metaMensal} clientes em ${mesAtual}.`;
-  } else {
-    mensagem = `Parabéns! Meta de ${metaMensal} clientes em ${mesAtual} atingida!`;
   }
 
   return (
     <ProtectedLayout>
       <SidebarLayout>
-        <main className="container py-10 px-4">
-          {isAdmin && (
-            <div className="mb-6">
-              <GoalTracker mes={mesAtual} ano={selectedYear} />
-            </div>
-          )}
-          
-          {!isAdmin && (
-            <div className="mb-6">
-              <VendedorMetaResumo mes={mesAtual} ano={selectedYear} />
-            </div>
-          )}
-          <DashboardMessage message={mensagem} />
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div className="p-6 space-y-8">
+          {/* Header do Dashboard */}
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-              <p className="text-gray-600 mt-1">
-                Bem-vindo, {user?.nome}.{" "}
-                {isAdmin
-                  ? "Visualize e gerencie todos os clientes."
-                  : "Cadastre novos clientes."}
+              <h1 className="text-3xl font-bold tracking-tight">
+                Dashboard
+              </h1>
+              <p className="text-muted-foreground">
+                Bem-vindo de volta, {user?.nome}! Aqui está o resumo do seu desempenho.
               </p>
             </div>
-            <div className="mt-4 md:mt-0 flex gap-4">
-              <Link href="/clientes/novo">
-                <Button className="bg-primary hover:bg-primary/90">
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Novo Cliente
-                </Button>
-              </Link>
-              {isAdmin && (
-                <Link href="/admin/clientes">
-                  <Button
-                    variant="outline"
-                    className="border-primary text-primary hover:bg-primary/10"
-                  >
-                    <Users className="mr-2 h-4 w-4" />
-                    Ver Todos
-                  </Button>
-                </Link>
-              )}
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="px-3 py-1">
+                <Calendar className="h-4 w-4 mr-2" />
+                {new Date().toLocaleDateString('pt-BR', { 
+                  day: '2-digit', 
+                  month: 'long', 
+                  year: 'numeric' 
+                })}
+              </Badge>
             </div>
           </div>
 
-            <div className="mb-8">
-              <Card className="bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 shadow-md">
-                <CardContent className="flex flex-col md:flex-row md:items-center justify-between py-6">
+          {/* Cards de Estatísticas - CLIENTES CADASTRADOS NO MÊS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Clientes Cadastrados no Mês */}
+            <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-2">Resumo do Mês</div>
-                    <div className="flex gap-8 items-center">
-                      <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-300">Total Pago</div>
-                        <div className="text-2xl font-bold text-green-700 dark:text-green-200">
-                          {valoresMes.pagos.toLocaleString("pt-BR", {
-                            style: "currency",
-                            currency: "BRL",
-                          })}
-                        </div>
-                      </div>
-                      <div className="border-l border-gray-200 dark:border-gray-700 h-10 mx-4" />
-                      <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-300">Total Pendente</div>
-                        <div className="text-2xl font-bold text-amber-600 dark:text-amber-200">
-                          {valoresMes.pendentes.toLocaleString("pt-BR", {
-                            style: "currency",
-                            currency: "BRL",
-                          })}
-                        </div>
-                      </div>
+                    <p className="text-sm font-medium text-blue-600">Clientes Cadastrados</p>
+                    <p className="text-3xl font-bold text-blue-900">
+                      {estatisticasCadastro.total}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-blue-500 rounded-full group-hover:bg-blue-600 transition-colors">
+                    <Users className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Progress value={100} className="h-2 bg-blue-200" />
+                  <p className="text-xs text-blue-600 mt-1">
+                    Em {mesAtual} {anoAtual}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Pagamentos do Mês (pagos no mês) */}
+            <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-green-600">Pagamentos do Mês</p>
+                    <p className="text-3xl font-bold text-green-900">
+                      {estatisticasReceita.total}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-green-500 rounded-full group-hover:bg-green-600 transition-colors">
+                    <CheckCircle className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Progress value={estatisticasCadastro.total > 0 ? (estatisticasReceita.total / estatisticasCadastro.total) * 100 : 0} className="h-2 bg-green-200" />
+                  <p className="text-xs text-green-600 mt-1">
+                    {estatisticasCadastro.total > 0 ? ((estatisticasReceita.total / estatisticasCadastro.total) * 100).toFixed(1) : 0}% dos cadastrados em {mesAtual}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Pendentes do Mês (dos cadastrados) */}
+            <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-yellow-600">Pendentes do Mês</p>
+                    <p className="text-3xl font-bold text-yellow-900">
+                      {estatisticasCadastro.pendentes}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-yellow-500 rounded-full group-hover:bg-yellow-600 transition-colors">
+                    <Clock className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Progress value={estatisticasCadastro.total > 0 ? (estatisticasCadastro.pendentes / estatisticasCadastro.total) * 100 : 0} className="h-2 bg-yellow-200" />
+                  <p className="text-xs text-yellow-600 mt-1">
+                    {estatisticasCadastro.total > 0 ? ((estatisticasCadastro.pendentes / estatisticasCadastro.total) * 100).toFixed(1) : 0}% dos cadastrados
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Valor dos Cadastrados no Mês */}
+            <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-purple-600">Valor Cadastrado</p>
+                    <p className="text-2xl font-bold text-purple-900">
+                      R$ {valorTotalCadastrados.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-purple-500 rounded-full group-hover:bg-purple-600 transition-colors">
+                    <DollarSign className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Progress value={100} className="h-2 bg-purple-200" />
+                  <p className="text-xs text-purple-600 mt-1">
+                    Total cadastrado em {mesAtual}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Cards de Estatísticas - RECEITA RECEBIDA NO MÊS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Receita Recebida no Mês */}
+            <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-emerald-600">Clientes Pagos no Mês</p>
+                    <p className="text-3xl font-bold text-emerald-900">
+                      {estatisticasReceita.total}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-emerald-500 rounded-full group-hover:bg-emerald-600 transition-colors">
+                    <TrendingUp className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Progress value={100} className="h-2 bg-emerald-200" />
+                  <p className="text-xs text-emerald-600 mt-1">
+                    Pagos em {mesAtual} (por data de pagamento)
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Valor Recebido no Mês */}
+            <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-indigo-600">Valor Recebido</p>
+                    <p className="text-2xl font-bold text-indigo-900">
+                      R$ {estatisticasReceita.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-indigo-500 rounded-full group-hover:bg-indigo-600 transition-colors">
+                    <BarChart3 className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Progress value={100} className="h-2 bg-indigo-200" />
+                  <p className="text-xs text-indigo-600 mt-1">
+                    Receita em {mesAtual} {anoAtual}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Taxa de Conversão */}
+            <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-teal-50 to-teal-100 border-teal-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-teal-600">Taxa de Conversão</p>
+                    <p className="text-2xl font-bold text-teal-900">
+                      {estatisticasCadastro.total > 0 ? ((estatisticasCadastro.pagos / estatisticasCadastro.total) * 100).toFixed(1) : 0}%
+                    </p>
+                  </div>
+                  <div className="p-3 bg-teal-500 rounded-full group-hover:bg-teal-600 transition-colors">
+                    <Target className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Progress value={estatisticasCadastro.total > 0 ? (estatisticasCadastro.pagos / estatisticasCadastro.total) * 100 : 0} className="h-2 bg-teal-200" />
+                  <p className="text-xs text-teal-600 mt-1">
+                    {estatisticasCadastro.pagos} de {estatisticasCadastro.total} clientes
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Ticket Médio */}
+            <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-pink-50 to-pink-100 border-pink-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-pink-600">Ticket Médio</p>
+                    <p className="text-2xl font-bold text-pink-900">
+                      R$ {estatisticasCadastro.total > 0 ? (valorTotalCadastrados / estatisticasCadastro.total).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-pink-500 rounded-full group-hover:bg-pink-600 transition-colors">
+                    <Calculator className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Progress value={100} className="h-2 bg-pink-200" />
+                  <p className="text-xs text-pink-600 mt-1">
+                    Valor médio por cliente
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Seção de Metas e Progresso */}
+          {metasCalculadas && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Progresso das Metas */}
+              <Card className="group hover:shadow-lg transition-all duration-300 border-2 border-transparent hover:border-primary/20">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Target className="h-5 w-5 text-primary" />
+                    Progresso das Metas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Meta de Quantidade */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Meta de Clientes</span>
+                      <span className="text-sm text-muted-foreground">
+                        {metasCalculadas.quantidade.atual} / {metasCalculadas.quantidade.meta}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={(metasCalculadas.quantidade.atual / metasCalculadas.quantidade.meta) * 100} 
+                      className="h-3"
+                    />
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <BarChart3 className="h-3 w-3" />
+                      {((metasCalculadas.quantidade.atual / metasCalculadas.quantidade.meta) * 100).toFixed(1)}% concluído
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-4 md:mt-0">
-                    <select
-                      className="border rounded px-2 py-1 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                    >
-                      {Array.from({ length: 12 }, (_, i) => (
-                        <option key={i + 1} value={i + 1}>
-                          {new Date(0, i).toLocaleString("pt-BR", { month: "long" })}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="border rounded px-2 py-1 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
-                      value={selectedYear}
-                      onChange={(e) => setSelectedYear(Number(e.target.value))}
-                    >
-                      {Array.from({ length: 5 }, (_, i) => {
-                        const year = new Date().getFullYear() - i;
-                        return (
-                          <option key={year} value={year}>
-                            {year}
-                          </option>
-                        );
-                      })}
-                    </select>
+
+                  {/* Meta de Valor */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Meta de Valor</span>
+                      <span className="text-sm text-muted-foreground">
+                        R$ {metasCalculadas.valor.atual.toLocaleString()} / R$ {metasCalculadas.valor.meta.toLocaleString()}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={(metasCalculadas.valor.atual / metasCalculadas.valor.meta) * 100} 
+                      className="h-3"
+                    />
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <TrendingUp className="h-3 w-3" />
+                      {((metasCalculadas.valor.atual / metasCalculadas.valor.meta) * 100).toFixed(1)}% concluído
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Resumo de Performance */}
+              <Card className="group hover:shadow-lg transition-all duration-300 border-2 border-transparent hover:border-primary/20">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Activity className="h-5 w-5 text-primary" />
+                    Resumo de Performance
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-500 rounded-full">
+                        <Users className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-blue-900">Taxa de Conversão</p>
+                        <p className="text-sm text-blue-600">
+                          {estatisticasCadastro.total > 0 ? ((estatisticasReceita.total / estatisticasCadastro.total) * 100).toFixed(1) : 0}%
+                        </p>
+                      </div>
+                    </div>
+                    <Star className="h-5 w-5 text-blue-400" />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-500 rounded-full">
+                        <DollarSign className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-green-900">Valor Médio</p>
+                        <p className="text-sm text-green-600">
+                          R$ {estatisticasReceita.total > 0 ? (estatisticasReceita.valor / estatisticasReceita.total).toFixed(2) : 0}
+                        </p>
+                      </div>
+                    </div>
+                    <TrendingUp className="h-5 w-5 text-green-400" />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-purple-500 rounded-full">
+                        <Zap className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-purple-900">Eficiência</p>
+                        <p className="text-sm text-purple-600">
+                          {estatisticasCadastro.pendentes > 0 ? ((estatisticasReceita.total / (estatisticasReceita.total + estatisticasCadastro.pendentes)) * 100).toFixed(1) : 100}%
+                        </p>
+                      </div>
+                    </div>
+                    <Target className="h-5 w-5 text-purple-400" />
                   </div>
                 </CardContent>
               </Card>
             </div>
+          )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-300">
-                    Total de Clientes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center">
-                    <Users className="h-5 w-5 text-primary mr-2" />
-                    <div className="text-2xl font-bold dark:text-gray-100">
-                      {isAdmin ? stats.total : stats.meusClientes}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-300">
-                    Pendentes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center">
-                    <Clock className="h-5 w-5 text-amber-500 mr-2" />
-                    <div className="text-2xl font-bold dark:text-gray-100">{stats.pendentes}</div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-300">
-                    Pagos
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
-                    <div className="text-2xl font-bold dark:text-gray-100">{stats.pagos}</div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-300">
-                    Valor Total
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center">
-                    <CreditCard className="h-5 w-5 text-blue-600 mr-2" />
-                    <div className="text-2xl font-bold dark:text-gray-100">
-                      {stats.valorTotal.toLocaleString("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                      })}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Meus Clientes Recentes</CardTitle>
-                  <CardDescription>
-                    {isAdmin
-                      ? "Clientes cadastrados recentemente por todos os usuários"
-                      : "Seus clientes cadastrados recentemente"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {clientesFiltrados
-                      .sort(
-                        (a, b) =>
-                          new Date(b.data + 'T00:00:00').getTime() -
-                          new Date(a.data + 'T00:00:00').getTime(),
-                      )
-                      .slice(0, 5)
-                      .map((cliente, idx) => (
-                        <div
-                          key={cliente.id || idx}
-                          className="flex items-center justify-between border-b pb-2"
-                        >
-                          <div>
-                            <div className="font-medium">{cliente.cliente}</div>
-                            <div className="text-sm text-gray-500">
-                              {cliente.produto} • {cliente.banco} •{" "}
-                              {new Date(cliente.data + 'T00:00:00').toLocaleDateString(
-                                "pt-BR",
-                              )}
-                            </div>
-                          </div>
-                          <div
-                            className={`px-2 py-1 rounded text-xs font-medium ${
-                              cliente.status === "pago"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-amber-100 text-amber-800"
-                            }`}
-                          >
-                            {cliente.status === "pago" ? "Pago" : "Pendente"}
-                          </div>
-                        </div>
-                      ))}
-
-                    {clientesFiltrados.length === 0 && (
-                      <div className="text-center py-4 text-gray-500">
-                        Nenhum cliente cadastrado ainda.{" "}
-                        <Link
-                          href="/clientes/novo"
-                          className="text-primary hover:underline"
-                        >
-                          Cadastrar cliente
-                        </Link>
+          {/* ALERTAS E LEMBRETES PARA VENDEDORES */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Clientes Pendentes que Precisam de Atenção */}
+            <Card className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-yellow-400">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-yellow-700">
+                  <AlertCircle className="h-5 w-5" />
+                  Clientes Pendentes - Ação Necessária
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {clientesCadastradosNoMes?.filter((c: any) => c.status === "pendente").slice(0, 5).map((cliente: any) => (
+                    <div key={cliente.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{cliente.cliente}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {cliente.produto} • {cliente.banco} • {cliente.fonte}
+                        </p>
+                        <p className="text-xs text-yellow-600 font-medium">
+                          R$ {cliente.valor} • Pendente desde {cliente.data}
+                        </p>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Ações Rápidas</CardTitle>
-                  <CardDescription>
-                    Acesse rapidamente as principais funcionalidades
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <Link href="/clientes/novo" className="w-full">
-                      <Button className="w-full bg-primary hover:bg-primary/90">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Cadastrar Novo Cliente
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => window.location.href = `/clientes/editar/${cliente.id}`}
+                      >
+                        Acompanhar
                       </Button>
-                    </Link>
+                    </div>
+                  ))}
+                  {estatisticasCadastro.pendentes === 0 && (
+                    <p className="text-center text-muted-foreground py-4">
+                      Nenhum cliente pendente! 🎉
+                    </p>
+                  )}
+                  {estatisticasCadastro.pendentes > 5 && (
+                    <div className="text-center pt-2">
+                      <Button variant="link" size="sm">
+                        Ver todos os {estatisticasCadastro.pendentes} pendentes
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-                    {isAdmin && (
-                      <>
-                        <Link href="/admin/clientes" className="w-full">
-                          <Button className="w-full" variant="outline">
-                            <Users className="mr-2 h-4 w-4" />
-                            Gerenciar Todos os Clientes
-                          </Button>
-                        </Link>
-
-                        <Link href="/analytics" className="w-full">
-                          <Button className="w-full" variant="outline">
-                            <BarChart3 className="mr-2 h-4 w-4" />
-                            Dashboard Analytics
-                          </Button>
-                        </Link>
-
-                        <Button
-                          className="w-full"
-                          variant="outline"
-                          onClick={exportarParaCSV}
-                        >
-                          <FileSpreadsheet className="mr-2 h-4 w-4" />
-                          Exportar para Planilha
-                        </Button>
-                      </>
-                    )}
+            {/* Resumo de Performance */}
+            <Card className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-400">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-green-700">
+                  <TrendingUp className="h-5 w-5" />
+                  Resumo de Performance
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <p className="text-2xl font-bold text-green-700">{estatisticasReceita.total}</p>
+                      <p className="text-xs text-green-600">Clientes Pagos</p>
+                    </div>
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-700">{estatisticasCadastro.total}</p>
+                      <p className="text-xs text-blue-600">Total Cadastrado</p>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          </main>
-        </SidebarLayout>
-      </ProtectedLayout>
-    );
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Taxa de Conversão:</span>
+                      <span className="font-medium">
+                        {estatisticasCadastro.total > 0 ? ((estatisticasReceita.total / estatisticasCadastro.total) * 100).toFixed(1) : 0}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Valor Médio por Cliente:</span>
+                      <span className="font-medium">
+                        R$ {estatisticasReceita.total > 0 ? (estatisticasReceita.valor / estatisticasReceita.total).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Performance do Mês:</span>
+                      <span className="font-medium">
+                        {estatisticasReceita.total} clientes pagos • R$ {estatisticasReceita.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Top Fontes de Clientes */}
+          <Card className="group hover:shadow-lg transition-all duration-300">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                Top Fontes de Clientes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {topFontesArray.map(([fonte, quantidade]: [string, number], index) => (
+                  <div key={fonte} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                        index === 0 ? 'bg-yellow-500' : 
+                        index === 1 ? 'bg-gray-400' : 
+                        index === 2 ? 'bg-orange-500' : 'bg-blue-500'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium">{fonte}</p>
+                        <p className="text-sm text-muted-foreground">{quantidade} clientes</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">
+                        {estatisticasCadastro.total > 0 ? ((quantidade / estatisticasCadastro.total) * 100).toFixed(1) : 0}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">do total</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Ações Rápidas */}
+          <Card className="group hover:shadow-lg transition-all duration-300">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-primary" />
+                Ações Rápidas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex flex-col items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all duration-300 group"
+                  onClick={() => window.location.href = '/clientes/novo'}
+                >
+                  <Users className="h-6 w-6 group-hover:scale-110 transition-transform" />
+                  <span>Novo Cliente</span>
+                </Button>
+                
+                {/* Opções apenas para administradores */}
+                {user?.role === "admin" && (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all duration-300 group"
+                      onClick={() => window.location.href = '/analytics'}
+                    >
+                      <BarChart3 className="h-6 w-6 group-hover:scale-110 transition-transform" />
+                      <span>Ver Analytics</span>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all duration-300 group"
+                      onClick={() => window.location.href = '/analytics/metas'}
+                    >
+                      <Target className="h-6 w-6 group-hover:scale-110 transition-transform" />
+                      <span>Gerenciar Metas</span>
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </SidebarLayout>
+    </ProtectedLayout>
+  );
 }

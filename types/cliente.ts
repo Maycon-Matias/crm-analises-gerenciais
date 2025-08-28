@@ -12,7 +12,8 @@ export type Cliente = {
   usuarios: string;
   status: StatusCliente;
   criadoPor: string;
-  data_pagamento?: string; // Data em que o pagamento foi realizado
+  data_previsao_pagamento?: string; // Data prevista para pagamento (definida pelo vendedor)
+  data_pagamento?: string; // Data em que o pagamento foi realizado (confirmada pelo admin)
   cpf?: string; // CPF do cliente (opcional)
   telefone?: string; // Telefone do cliente (opcional)
   observacoes?: string; // Observações adicionais (opcional)

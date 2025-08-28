@@ -18,8 +18,13 @@ const nextConfig = {
   // Configurações experimentais
   experimental: {
     forceSwcTransforms: false,
-    serverComponentsExternalPackages: ['mongodb'],
   },
+  
+  // Configuração correta para pacotes externos
+  serverExternalPackages: ['mongodb'],
+  
+  // Configuração para permitir origens de desenvolvimento
+  allowedDevOrigins: ['192.168.100.4', 'localhost', '127.0.0.1'],
   
   // Configurações de headers de segurança
   async headers() {
