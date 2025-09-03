@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ export default function ClientesPage() {
   const { clientes, removerCliente, exportarParaCSV, exportarParaHTML } = useClientes();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const searchParams = useSearchParams();
   
   console.log("📊 Estado inicial:", { 
     totalClientes: clientes.length, 
@@ -56,6 +58,15 @@ export default function ClientesPage() {
   const [filtrosRenderizados, setFiltrosRenderizados] = useState(false);
   const [clienteSelecionado, setClienteSelecionado] = useState<any>(null);
   const [modalAberto, setModalAberto] = useState(false);
+
+  // Ler parâmetros de URL para filtros automáticos
+  useEffect(() => {
+    const statusFromURL = searchParams.get('status');
+    if (statusFromURL) {
+      setStatusFiltro(statusFromURL);
+      console.log("🔗 Filtro de status aplicado da URL:", statusFromURL);
+    }
+  }, [searchParams]);
 
   // Obter lista de meses únicos para filtros
   const mesesUnicos = [...new Set(clientes.map(c => c.mes))].sort();

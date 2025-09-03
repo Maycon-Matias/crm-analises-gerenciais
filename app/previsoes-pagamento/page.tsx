@@ -102,6 +102,9 @@ export default function PrevisoesPagamentoPage() {
         case "mes":
           dataInicio.setMonth(hoje.getMonth() - 1);
           break;
+        case "3meses":
+          dataInicio.setMonth(hoje.getMonth() - 3);
+          break;
         case "proximos7dias":
           dataFim = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000);
           break;
@@ -111,22 +114,22 @@ export default function PrevisoesPagamentoPage() {
       const notificacoesPeriodo: NotificacaoPrevisao[] = [];
       const dataAtual = new Date(dataInicio);
       
-             while (dataAtual <= dataFim) {
-         const dataStr = dataAtual.toISOString().split('T')[0];
-         const params = new URLSearchParams();
-         if (usuarioFiltro && usuarioFiltro !== "todos") params.append("usuario", usuarioFiltro);
-         params.append("data", dataStr);
+      while (dataAtual <= dataFim) {
+        const dataStr = dataAtual.toISOString().split('T')[0];
+        const params = new URLSearchParams();
+        if (usuarioFiltro && usuarioFiltro !== "todos") params.append("usuario", usuarioFiltro);
+        params.append("data", dataStr);
 
-         const response = await fetch(`/api/notificacoes/previsoes?${params}`);
-         if (response.ok) {
-           const data = await response.json();
-           if (data.totalClientes > 0) {
-             notificacoesPeriodo.push(data);
-           }
-         }
+        const response = await fetch(`/api/notificacoes/previsoes?${params}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.totalClientes > 0) {
+            notificacoesPeriodo.push(data);
+          }
+        }
 
-         dataAtual.setDate(dataAtual.getDate() + 1);
-       }
+        dataAtual.setDate(dataAtual.getDate() + 1);
+      }
 
       setNotificacoes(notificacoesPeriodo);
     } catch (error) {
@@ -191,6 +194,7 @@ export default function PrevisoesPagamentoPage() {
                         <SelectItem value="hoje">Hoje</SelectItem>
                         <SelectItem value="semana">Última Semana</SelectItem>
                         <SelectItem value="mes">Último Mês</SelectItem>
+                        <SelectItem value="3meses">Últimos 3 Meses</SelectItem>
                         <SelectItem value="proximos7dias">Próximos 7 Dias</SelectItem>
                       </SelectContent>
                     </Select>
