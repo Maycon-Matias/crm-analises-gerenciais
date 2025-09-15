@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import { getCache, setCache, deleteCache } from "@/lib/cache";
 
 // GET - Listar todas as metas
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     // Tentar obter do cache primeiro
     const cacheKey = "metas-todas";
@@ -16,7 +16,28 @@ export async function GET(req: NextRequest) {
     }
 
     console.log("🔄 Buscando metas do banco...");
-    const client = await clientPromise;
+    
+    // Tentar conectar com retry
+    let client;
+    let retries = 3;
+    
+    while (retries > 0) {
+      try {
+        client = await clientPromise;
+        break;
+      } catch (error) {
+        retries--;
+        console.warn(`⚠️ Tentativa de conexão falhou, ${retries} tentativas restantes:`, error);
+        
+        if (retries === 0) {
+          throw error;
+        }
+        
+        // Aguardar antes de tentar novamente
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
     const db = client.db("crm");
     const collection = db.collection("metas");
 
@@ -39,7 +60,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(metasFormatadas);
   } catch (error) {
     console.error("Erro ao buscar metas:", error);
-    return NextResponse.json({ error: "Erro ao buscar metas" }, { status: 500 });
+    
+    // Retornar erro mais específico baseado no tipo de erro
+    if (error.name === 'MongoServerSelectionError') {
+      return NextResponse.json({ 
+        error: "Erro de conexão com o banco de dados. Verifique se o MongoDB está acessível.",
+        details: "Server selection timed out"
+      }, { status: 503 });
+    }
+    
+    return NextResponse.json({ 
+      error: "Erro ao buscar metas",
+      details: error.message 
+    }, { status: 500 });
   }
 }
 

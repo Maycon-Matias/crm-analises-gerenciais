@@ -244,7 +244,7 @@ export default function NovoClientePage() {
 
   const isFormValid = () => {
     const obrigatorios = ["cliente", "valor", "data", "mes", "produto", "banco", "fonte"];
-    return obrigatorios.every(campo => formData[campo] && !errors[campo]);
+    return obrigatorios.every(campo => formData[campo as keyof typeof formData] && !errors[campo as keyof typeof errors]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

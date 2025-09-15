@@ -76,15 +76,10 @@ const nextConfig = {
     ];
   },
   
-  // Configurações de rewrites
-  async rewrites() {
-    return [
-      {
-        source: '/api/health',
-        destination: '/api/health/route',
-      },
-    ];
-  },
+  // Configurações de rewrites (removido - não necessário no App Router)
+  // async rewrites() {
+  //   return [];
+  // },
 };
 
 export default nextConfig;

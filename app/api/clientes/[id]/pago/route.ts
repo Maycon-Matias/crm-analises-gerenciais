@@ -3,8 +3,9 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 
 // PUT - Marcar como pago e setar data_pagamento
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { data_pagamento } = await req.json();
     if (!data_pagamento) {
       return NextResponse.json({ error: "data_pagamento é obrigatório" }, { status: 400 });
@@ -15,7 +16,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const collection = db.collection("clientes");
 
     const result = await collection.updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(id) },
       { $set: { status: "pago", data_pagamento } }
     );
 

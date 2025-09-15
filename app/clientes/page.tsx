@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, PlusCircle, Search, Trash2, Filter, X, Eye, User } from "lucide-react";
+import { Edit, PlusCircle, Search, Trash2, Filter, X, Eye } from "lucide-react";
 import { useClientes } from "@/hooks/use-clientes";
 import { useAuth } from "@/hooks/use-auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,13 +26,12 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 
 export default function ClientesPage() {
   console.log("🚀 Componente ClientesPage sendo renderizado");
   
-  const { clientes, removerCliente, exportarParaCSV, exportarParaHTML } = useClientes();
+  const { clientes, removerCliente, exportarParaCSV, exportarParaHTML, exportarClientesComPrevisao } = useClientes();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const searchParams = useSearchParams();
@@ -460,6 +459,13 @@ export default function ClientesPage() {
                     🌐 Exportar HTML
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  className="border-purple-500 text-purple-600 hover:bg-purple-50"
+                  onClick={exportarClientesComPrevisao}
+                >
+                  📅 Exportar com Previsão
+                </Button>
                 <Link href="/clientes/novo">
                   <Button className="bg-primary hover:bg-primary/90">
                     <PlusCircle className="mr-2 h-4 w-4" />

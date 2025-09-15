@@ -5,14 +5,15 @@ import { ObjectId } from "mongodb";
 // GET - Obter um cliente por ID
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const client = await clientPromise;
     const db = client.db("crm");
     const collection = db.collection("clientes");
 
-    const doc = await collection.findOne({ _id: new ObjectId(params.id) });
+    const doc = await collection.findOne({ _id: new ObjectId(id) });
     if (!doc) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }
@@ -44,14 +45,13 @@ export async function GET(
 }
 
 // PUT - Atualizar cliente inteiro
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const payload = await req.json();
     const client = await clientPromise;
     const db = client.db("crm");
     const collection = db.collection("clientes");
-
-    const { id } = params;
 
     const update = { ...payload };
     delete update.id;
@@ -73,13 +73,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 }
 
 // DELETE - Remover cliente
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const client = await clientPromise;
     const db = client.db("crm");
     const collection = db.collection("clientes");
 
-    const result = await collection.deleteOne({ _id: new ObjectId(params.id) });
+    const result = await collection.deleteOne({ _id: new ObjectId(id) });
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }

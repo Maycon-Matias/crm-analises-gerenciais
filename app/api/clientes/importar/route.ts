@@ -3,7 +3,7 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 
 // GET - Listar todos os clientes
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const client = await clientPromise;
     const db = client.db("crm");

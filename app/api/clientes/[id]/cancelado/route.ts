@@ -3,14 +3,15 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 
 // PUT - Marcar como cancelado
-export async function PUT(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const client = await clientPromise;
     const db = client.db("crm");
     const collection = db.collection("clientes");
 
     const result = await collection.updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(id) },
       { $set: { status: "cancelado" } }
     );
 

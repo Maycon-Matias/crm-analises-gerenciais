@@ -21,12 +21,11 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  Star,
   BarChart3,
-  Activity,
   Zap,
   Calculator
 } from "lucide-react";
+import { DoughnutChart } from "@/components/charts/doughnut-chart";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -198,6 +197,24 @@ export default function DashboardPage() {
     .sort(([,a]: [string, unknown], [,b]: [string, unknown]) => (b as number) - (a as number))
     .slice(0, 5);
 
+  // Preparar dados para o gráfico de pizza
+  const dadosGraficoFontes = {
+    labels: topFontesArray.map(([fonte]) => fonte),
+    datasets: [{
+      data: topFontesArray.map(([, quantidade]) => quantidade as number),
+      backgroundColor: [
+        '#fbbf24', // yellow-400
+        '#9ca3af', // gray-400
+        '#f97316', // orange-500
+        '#3b82f6', // blue-500
+        '#8b5cf6', // violet-500
+      ],
+      borderColor: '#ffffff',
+      borderWidth: 2,
+      hoverOffset: 4,
+    }]
+  };
+
   // VALORES DOS CLIENTES CADASTRADOS NO PERÍODO
   const valorTotalCadastrados = clientesCadastradosNoPeriodo.reduce((acc: number, c: any) => {
     const valor = Number(c.valor.replace("R$", "").replace(/\./g, "").replace(",", "."));
@@ -329,14 +346,14 @@ export default function DashboardPage() {
   return (
     <ProtectedLayout>
       <SidebarLayout>
-        <div className="p-6 space-y-8">
+        <div className="p-2 sm:p-4 space-y-4 sm:space-y-6">
           {/* Header do Dashboard */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
                 Dashboard
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-sm sm:text-base text-muted-foreground">
                 Bem-vindo de volta, {user?.nome}! Aqui está o resumo do seu desempenho.
               </p>
             </div>
@@ -369,19 +386,19 @@ export default function DashboardPage() {
           </div>
 
           {/* Cards de Estatísticas - CLIENTES CADASTRADOS NO MÊS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Clientes Cadastrados no Mês */}
             <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-blue-600">Clientes Cadastrados</p>
-                    <p className="text-3xl font-bold text-blue-900">
+                    <p className="text-2xl sm:text-3xl font-bold text-blue-900">
                       {estatisticasCadastro.total}
                     </p>
                   </div>
-                  <div className="p-3 bg-blue-500 rounded-full group-hover:bg-blue-600 transition-colors">
-                    <Users className="h-6 w-6 text-white" />
+                  <div className="p-2 sm:p-3 bg-blue-500 rounded-full group-hover:bg-blue-600 transition-colors">
+                    <Users className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                   </div>
                 </div>
                 <div className="mt-4">
@@ -397,16 +414,16 @@ export default function DashboardPage() {
 
             {/* Pagamentos do Mês (pagos no mês) */}
             <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-green-600">Pagamentos do Mês</p>
-                    <p className="text-3xl font-bold text-green-900">
+                    <p className="text-2xl sm:text-3xl font-bold text-green-900">
                       {estatisticasReceita.total}
                     </p>
                   </div>
-                  <div className="p-3 bg-green-500 rounded-full group-hover:bg-green-600 transition-colors">
-                    <CheckCircle className="h-6 w-6 text-white" />
+                  <div className="p-2 sm:p-3 bg-green-500 rounded-full group-hover:bg-green-600 transition-colors">
+                    <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                   </div>
                 </div>
                 <div className="mt-4">
@@ -420,16 +437,16 @@ export default function DashboardPage() {
 
             {/* Pendentes do Mês (dos cadastrados) */}
             <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-yellow-600">Pendentes do Mês</p>
-                    <p className="text-3xl font-bold text-yellow-900">
+                    <p className="text-2xl sm:text-3xl font-bold text-yellow-900">
                       {estatisticasCadastro.pendentes}
                     </p>
                   </div>
-                  <div className="p-3 bg-yellow-500 rounded-full group-hover:bg-yellow-600 transition-colors">
-                    <Clock className="h-6 w-6 text-white" />
+                  <div className="p-2 sm:p-3 bg-yellow-500 rounded-full group-hover:bg-yellow-600 transition-colors">
+                    <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                   </div>
                 </div>
                 <div className="mt-4">
@@ -443,7 +460,7 @@ export default function DashboardPage() {
 
             {/* Valor dos Cadastrados no Mês */}
             <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-purple-600">Valor Cadastrado</p>
@@ -451,8 +468,8 @@ export default function DashboardPage() {
                       R$ {valorTotalCadastrados.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
-                  <div className="p-3 bg-purple-500 rounded-full group-hover:bg-purple-600 transition-colors">
-                    <DollarSign className="h-6 w-6 text-white" />
+                  <div className="p-2 sm:p-3 bg-purple-500 rounded-full group-hover:bg-purple-600 transition-colors">
+                    <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                   </div>
                 </div>
                 <div className="mt-4">
@@ -466,18 +483,18 @@ export default function DashboardPage() {
           </div>
 
           {/* Cards de Estatísticas - RECEITA RECEBIDA NO MÊS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Receita Recebida no Mês */}
             <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-emerald-600">Clientes Pagos no Mês</p>
-                    <p className="text-3xl font-bold text-emerald-900">
+                    <p className="text-2xl sm:text-3xl font-bold text-emerald-900">
                       {estatisticasReceita.total}
                     </p>
                   </div>
-                  <div className="p-3 bg-emerald-500 rounded-full group-hover:bg-emerald-600 transition-colors">
+                  <div className="p-2 sm:p-3 bg-emerald-500 rounded-full group-hover:bg-emerald-600 transition-colors">
                     <TrendingUp className="h-6 w-6 text-white" />
                   </div>
                 </div>
@@ -492,7 +509,7 @@ export default function DashboardPage() {
 
             {/* Valor Recebido no Mês */}
             <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-indigo-600">Valor Recebido</p>
@@ -500,7 +517,7 @@ export default function DashboardPage() {
                       R$ {estatisticasReceita.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
-                  <div className="p-3 bg-indigo-500 rounded-full group-hover:bg-indigo-600 transition-colors">
+                  <div className="p-2 sm:p-3 bg-indigo-500 rounded-full group-hover:bg-indigo-600 transition-colors">
                     <BarChart3 className="h-6 w-6 text-white" />
                   </div>
                 </div>
@@ -515,7 +532,7 @@ export default function DashboardPage() {
 
             {/* Taxa de Conversão */}
             <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-teal-50 to-teal-100 border-teal-200">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-teal-600">Taxa de Conversão</p>
@@ -523,7 +540,7 @@ export default function DashboardPage() {
                       {estatisticasCadastro.total > 0 ? ((estatisticasCadastro.pagos / estatisticasCadastro.total) * 100).toFixed(1) : 0}%
                     </p>
                   </div>
-                  <div className="p-3 bg-teal-500 rounded-full group-hover:bg-teal-600 transition-colors">
+                  <div className="p-2 sm:p-3 bg-teal-500 rounded-full group-hover:bg-teal-600 transition-colors">
                     <Target className="h-6 w-6 text-white" />
                   </div>
                 </div>
@@ -538,7 +555,7 @@ export default function DashboardPage() {
 
             {/* Ticket Médio */}
             <Card className="group hover:scale-105 transition-all duration-300 cursor-pointer bg-gradient-to-br from-pink-50 to-pink-100 border-pink-200">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-pink-600">Ticket Médio</p>
@@ -546,7 +563,7 @@ export default function DashboardPage() {
                       R$ {estatisticasCadastro.total > 0 ? (valorTotalCadastrados / estatisticasCadastro.total).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}
                     </p>
                   </div>
-                  <div className="p-3 bg-pink-500 rounded-full group-hover:bg-pink-600 transition-colors">
+                  <div className="p-2 sm:p-3 bg-pink-500 rounded-full group-hover:bg-pink-600 transition-colors">
                     <Calculator className="h-6 w-6 text-white" />
                   </div>
                 </div>
@@ -562,7 +579,7 @@ export default function DashboardPage() {
 
           {/* Seção de Metas e Progresso */}
           {metasReais && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               {/* Progresso das Metas */}
               <Card className="group hover:shadow-lg transition-all duration-300 border-2 border-transparent hover:border-primary/20">
                 <CardHeader className="pb-4">
@@ -571,9 +588,9 @@ export default function DashboardPage() {
                     Progresso das Metas - {metasReais.quantidade.tipo}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4">
                   {/* Meta de Quantidade */}
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Meta de Clientes</span>
                       <span className="text-sm text-muted-foreground">
@@ -607,7 +624,7 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Meta de Valor */}
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Meta de Valor</span>
                       <span className="text-sm text-muted-foreground">
@@ -651,10 +668,10 @@ export default function DashboardPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {/* Cards de Métricas Principais */}
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200 hover:bg-green-100 transition-colors">
+                      <div className="text-center p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200 hover:bg-green-100 transition-colors">
                         <div className="flex items-center justify-center mb-2">
                           <div className="p-2 bg-green-500 rounded-full">
                             <CheckCircle className="h-4 w-4 text-white" />
@@ -667,7 +684,7 @@ export default function DashboardPage() {
                           +{estatisticasReceita.total > 0 ? Math.floor(Math.random() * 15) + 5 : 0}% vs mês anterior
                         </div>
                       </div>
-                      <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors">
+                      <div className="text-center p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors">
                         <div className="flex items-center justify-center mb-2">
                           <div className="p-2 bg-blue-500 rounded-full">
                             <Users className="h-4 w-4 text-white" />
@@ -703,7 +720,7 @@ export default function DashboardPage() {
                     )}
                     
                     {/* Métricas Detalhadas */}
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <div className="flex justify-between items-center p-3 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg border border-emerald-200">
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
@@ -787,9 +804,9 @@ export default function DashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {clientesCadastradosNoPeriodo?.filter((c: any) => c.status === "pendente").slice(0, 5).map((cliente: any) => (
-                    <div key={cliente.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                    <div key={cliente.id} className="flex items-center justify-between p-2 bg-yellow-50 rounded-lg">
                       <div className="flex-1">
                         <p className="font-medium text-sm">{cliente.cliente}</p>
                         <p className="text-xs text-muted-foreground">
@@ -840,30 +857,34 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {topFontesArray.map(([fonte, quantidade]: [string, number], index) => (
-                  <div key={fonte} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                        index === 0 ? 'bg-yellow-500' : 
-                        index === 1 ? 'bg-gray-400' : 
-                        index === 2 ? 'bg-orange-500' : 'bg-blue-500'
-                      }`}>
-                        {index + 1}
+              <div className="space-y-3">
+                <DoughnutChart 
+                  data={dadosGraficoFontes} 
+                  height={200}
+                  formatValues={false}
+                  cutout="50%"
+                />
+                <div className="space-y-2">
+                  {topFontesArray.map(([fonte, quantidade]: [string, number], index) => (
+                    <div key={fonte} className="flex items-center justify-between p-1.5 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: dadosGraficoFontes.datasets[0].backgroundColor[index] }}
+                        />
+                        <div>
+                          <p className="font-medium text-sm">{fonte}</p>
+                          <p className="text-xs text-muted-foreground">{quantidade} clientes</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{fonte}</p>
-                        <p className="text-sm text-muted-foreground">{quantidade} clientes</p>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">
+                          {estatisticasCadastro.total > 0 ? ((quantidade / estatisticasCadastro.total) * 100).toFixed(1) : 0}%
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">
-                        {estatisticasCadastro.total > 0 ? ((quantidade / estatisticasCadastro.total) * 100).toFixed(1) : 0}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">do total</p>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -877,10 +898,10 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <Button 
                   variant="outline" 
-                  className="h-20 flex flex-col items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all duration-300 group"
+                  className="h-16 flex flex-col items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all duration-300 group"
                   onClick={() => window.location.href = '/clientes/novo'}
                 >
                   <Users className="h-6 w-6 group-hover:scale-110 transition-transform" />
@@ -892,7 +913,7 @@ export default function DashboardPage() {
                   <>
                     <Button 
                       variant="outline" 
-                      className="h-20 flex flex-col items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all duration-300 group"
+                      className="h-16 flex flex-col items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all duration-300 group"
                       onClick={() => window.location.href = '/analytics'}
                     >
                       <BarChart3 className="h-6 w-6 group-hover:scale-110 transition-transform" />
@@ -901,7 +922,7 @@ export default function DashboardPage() {
                     
                     <Button 
                       variant="outline" 
-                      className="h-20 flex flex-col items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all duration-300 group"
+                      className="h-16 flex flex-col items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all duration-300 group"
                       onClick={() => window.location.href = '/analytics/metas'}
                     >
                       <Target className="h-6 w-6 group-hover:scale-110 transition-transform" />

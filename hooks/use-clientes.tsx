@@ -21,6 +21,7 @@ type ClientesContextType = {
   marcarComoCancelado: (id: string) => Promise<void>;
   exportarParaCSV: (clientesParaExportar?: Cliente[]) => void;
   exportarParaHTML: (clientesParaExportar?: Cliente[]) => void;
+  exportarClientesComPrevisao: () => void;
   opcoesPredefinidas: typeof opcoesPredefinidas;
   refetchClientes: () => Promise<void>;
   // NOVAS FUNÇÕES DE CATEGORIZAÇÃO
@@ -626,6 +627,67 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     document.body.removeChild(link);
   };
 
+  const exportarClientesComPrevisao = () => {
+    // Filtrar apenas clientes que têm data_previsao_pagamento definida
+    const clientesComPrevisao = clientes.filter(cliente => 
+      cliente.data_previsao_pagamento && cliente.data_previsao_pagamento.trim() !== ''
+    );
+    
+    if (clientesComPrevisao.length === 0) {
+      alert("Não há clientes com previsão de pagamento para exportar.");
+      return;
+    }
+
+    const headers = [
+      "ID",
+      "Cliente",
+      "Produto",
+      "Banco",
+      "Fonte",
+      "Valor",
+      "Status",
+      "CPF",
+      "Telefone",
+      "Usuário",
+      "Data de Cadastro",
+      "Mês de Cadastro",
+      "Data de Previsão de Pagamento",
+      "Data de Pagamento",
+      "Observações"
+    ];
+
+    const csvContent = [
+      headers.join(","),
+      ...clientesComPrevisao.map(cliente => [
+        cliente.id,
+        `"${cliente.cliente || ''}"`,
+        `"${cliente.produto || ''}"`,
+        `"${cliente.banco || ''}"`,
+        `"${cliente.fonte || ''}"`,
+        `"${cliente.valor || ''}"`,
+        cliente.status || '',
+        `"${cliente.cpf || ''}"`,
+        `"${cliente.telefone || ''}"`,
+        `"${cliente.usuarios || ''}"`,
+        cliente.data || '',
+        cliente.mes || '',
+        cliente.data_previsao_pagamento || '',
+        cliente.data_pagamento || '',
+        `"${cliente.observacoes || ''}"`
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `clientes_com_previsao_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const value: ClientesContextType = {
     clientes,
     adicionarCliente,
@@ -635,6 +697,7 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     marcarComoCancelado,
     exportarParaCSV,
     exportarParaHTML,
+    exportarClientesComPrevisao,
     opcoesPredefinidas,
     refetchClientes,
     getClientesPorCategoria,

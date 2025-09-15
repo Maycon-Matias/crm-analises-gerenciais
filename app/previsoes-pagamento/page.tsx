@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SidebarLayout } from "@/components/sidebar-layout";
 import { ProtectedLayout } from "@/components/protected-layout";
 import { useAuth } from "@/hooks/use-auth";
-import { Calendar, DollarSign, Users, TrendingUp, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { useClientes } from "@/hooks/use-clientes";
+import { Calendar, DollarSign, Users, TrendingUp, AlertTriangle, CheckCircle, Clock, Download } from "lucide-react";
 
 interface ClientePrevisao {
   id: string;
@@ -33,6 +34,7 @@ interface NotificacaoPrevisao {
 
 export default function PrevisoesPagamentoPage() {
   const { user } = useAuth();
+  const { exportarClientesComPrevisao } = useClientes();
   const [notificacoes, setNotificacoes] = useState<NotificacaoPrevisao[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataSelecionada, setDataSelecionada] = useState(new Date().toISOString().split('T')[0]);
@@ -165,18 +167,27 @@ export default function PrevisoesPagamentoPage() {
           <div className="container mx-auto py-10 px-4 max-w-7xl">
             {/* Header */}
             <div className="mb-8">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <Calendar className="h-8 w-8 text-primary" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-primary/10 rounded-lg">
+                    <Calendar className="h-8 w-8 text-primary" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                      Previsões de Pagamento
+                    </h1>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Acompanhe e gerencie as previsões de pagamento dos clientes
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                    Previsões de Pagamento
-                  </h1>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Acompanhe e gerencie as previsões de pagamento dos clientes
-                  </p>
-                </div>
+                <Button
+                  onClick={exportarClientesComPrevisao}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Download className="h-4 w-4" />
+                  Exportar CSV
+                </Button>
               </div>
             </div>
 
