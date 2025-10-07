@@ -22,7 +22,7 @@ import {
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useClientes } from "@/hooks/use-clientes";
 import { useAuth } from "@/hooks/use-auth";
-import { isFontePrincipal } from "@/lib/fontes-config";
+import { isFontePrincipal, getPercentualMeta, isFonteCorretor } from "@/lib/fontes-config";
 
 interface GoalTrackerProps {
   mes: string;
@@ -89,13 +89,13 @@ export function GoalTracker({ mes, ano }: GoalTrackerProps) {
 
     if (isAdmin) {
       // Para administradores: somar todos os vendedores e usar meta da empresa
-      // Filtrar apenas clientes de fontes principais (não corretores)
+      // Para quantidade: considerar apenas fontes principais
       clientesFiltrados = clientes.filter(c => isFontePrincipal(c.fonte));
       metaQuantidadeAtual = metaQuantidade;
       metaValorAtual = metaValor; // Usar valor direto da meta (já está em reais)
     } else {
       // Para vendedores: apenas seus próprios clientes e suas metas individuais
-      // Filtrar apenas clientes de fontes principais (não corretores)
+      // Para quantidade: considerar apenas fontes principais
       clientesFiltrados = clientes.filter(c => 
         c.criadoPor === user?.id && isFontePrincipal(c.fonte)
       );
@@ -142,14 +142,34 @@ export function GoalTracker({ mes, ano }: GoalTrackerProps) {
     });
 
     // Somar apenas clientes PAGOS para o valor da meta
-    const clientesPagosDoMes = clientesDoMes.filter(cliente => 
-      cliente.status === "pago" && cliente.data_pagamento
-    );
+    // Para cálculo de VALOR, considerar também clientes de corretores com peso (percentualMeta)
+    // Montar lista de clientes pagos do mês sem restringir por fonte
+    const clientesPagosDoMes = (isAdmin
+      ? clientes
+      : clientes.filter(c => c.criadoPor === user?.id)
+    ).filter(cliente => {
+      try {
+        if (cliente.status !== "pago" || !cliente.data_pagamento) return false;
+        const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
+        const mesPagamento = dataPagamento.getMonth() + 1;
+        const anoPagamento = dataPagamento.getFullYear();
+        return mesPagamento === getMesNumero(mes) && anoPagamento === ano;
+      } catch {
+        return false;
+      }
+    });
 
+    let valorCorretoresBruto = 0;
+    let valorCorretoresContado = 0;
     const valorAtual = clientesPagosDoMes.reduce((acc, cliente) => {
       try {
         const valor = Number(cliente.valor.replace("R$", "").replace(/\./g, "").replace(",", "."));
-        return acc + (isNaN(valor) ? 0 : valor);
+        const peso = getPercentualMeta(cliente.fonte);
+        if (isFonteCorretor(cliente.fonte)) {
+          valorCorretoresBruto += isNaN(valor) ? 0 : valor;
+          valorCorretoresContado += isNaN(valor) ? 0 : valor * (isNaN(peso) ? 0 : peso);
+        }
+        return acc + (isNaN(valor) ? 0 : valor * (isNaN(peso) ? 0 : peso));
       } catch (error) {
         console.error(`Erro ao processar valor do cliente ${cliente.cliente}:`, error);
         return acc;
@@ -178,6 +198,12 @@ export function GoalTracker({ mes, ano }: GoalTrackerProps) {
         atual: valorAtual, // Apenas valor dos pagos
         meta: metaValorAtual,
         percentual: metaValorAtual > 0 ? (valorAtual / metaValorAtual) * 100 : 0
+      },
+      detalhamento: {
+        corretores: {
+          bruto: valorCorretoresBruto,
+          contado: valorCorretoresContado
+        }
       }
     };
   };
@@ -553,6 +579,28 @@ export function GoalTracker({ mes, ano }: GoalTrackerProps) {
                         {progresso.valor.percentual >= 100 ? "Concluído" : "Em andamento"}
                       </div>
                     </Badge>
+                  </div>
+
+                  {/* Indicador visual Corretores (50%) */}
+                  <div className="mt-3 space-y-2 rounded-md border p-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Corretores (50%) — contou</span>
+                      <span className="font-medium">
+                        R$ {(progresso.detalhamento?.corretores?.contado || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={
+                        progresso.valor.meta > 0
+                          ? Math.min(((progresso.detalhamento?.corretores?.contado || 0) / progresso.valor.meta) * 100, 100)
+                          : 0
+                      }
+                      className="h-2"
+                    />
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>Bruto corretores</span>
+                      <span>R$ {(progresso.detalhamento?.corretores?.bruto || 0).toLocaleString()}</span>
+                    </div>
                   </div>
                 </TabsContent>
               </Tabs>

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useClientes } from "@/hooks/use-clientes";
-import { isFontePrincipal } from "@/lib/fontes-config";
+import { isFontePrincipal, getPercentualMeta, isFonteCorretor } from "@/lib/fontes-config";
 import { Target, TrendingUp, DollarSign, Users } from "lucide-react";
 import Link from "next/link";
 
@@ -28,13 +28,8 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
               meta.ano === ano
   );
 
-  // Filtrar clientes do vendedor para o período
+  // Filtrar clientes do vendedor para o período (para QUANTIDADE apenas fontes principais)
   const meusClientes = clientes.filter((cliente) => {
-    // Filtrar apenas clientes de fontes principais (não corretores)
-    if (!isFontePrincipal(cliente.fonte)) {
-      return false;
-    }
-    
     if (cliente.criadoPor !== user?.id) return false;
     
     // Para clientes PAGOS: usar data_pagamento para cálculo de receita
@@ -59,21 +54,36 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
       cliente.status === "pago" && cliente.data_pagamento
     );
 
+    // Valor recebido ponderado pela fonte (50% para corretores)
+    let brutoCorretores = 0;
+    let contadoCorretores = 0;
     const valorRecebido = clientesPagosDoMes.reduce((acc, cliente) => {
       const valor = Number(cliente.valor.replace("R$", "").replace(/\./g, "").replace(",", "."));
-      return acc + (isNaN(valor) ? 0 : valor);
+      const peso = getPercentualMeta(cliente.fonte);
+      if (isFonteCorretor(cliente.fonte)) {
+        brutoCorretores += isNaN(valor) ? 0 : valor;
+        contadoCorretores += isNaN(valor) ? 0 : valor * (isNaN(peso) ? 0 : peso);
+      }
+      return acc + (isNaN(valor) ? 0 : valor * (isNaN(peso) ? 0 : peso));
     }, 0);
 
     // Para contagem: usar todos os clientes (data de cadastro)
-    const totalClientes = meusClientes.length;
-    const clientesPagos = clientesPagosDoMes.length;
-    const clientesPendentes = meusClientes.filter(c => c.status === "pendente").length;
+    // Para contagem de clientes, considerar apenas fontes principais
+    const totalClientes = meusClientes.filter(c => isFontePrincipal(c.fonte)).length;
+    const clientesPagos = clientesPagosDoMes.filter(c => isFontePrincipal(c.fonte)).length;
+    const clientesPendentes = meusClientes.filter(c => c.status === "pendente" && isFontePrincipal(c.fonte)).length;
 
     return {
       valorRecebido,
       totalClientes,
       clientesPagos,
-      clientesPendentes
+      clientesPendentes,
+      detalhamento: {
+        corretores: {
+          bruto: brutoCorretores,
+          contado: contadoCorretores
+        }
+      }
     };
   };
 
@@ -198,6 +208,19 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
               <div className="text-lg font-bold text-purple-600">
                 {((minhaMeta.valorMeta - (progresso?.valorRecebido || 0)) / 1000).toFixed(1)}k
               </div>
+            </div>
+          </div>
+
+          {/* Detalhamento Corretores */}
+          <div className="mt-4 rounded-md border bg-white p-3">
+            <div className="text-xs text-gray-600 mb-1">Corretores (50%)</div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">Bruto corretores</span>
+              <span className="font-medium">{(progresso?.detalhamento?.corretores?.bruto || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">Contou para meta</span>
+              <span className="font-medium">{(progresso?.detalhamento?.corretores?.contado || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
             </div>
           </div>
         </div>

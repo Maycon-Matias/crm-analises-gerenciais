@@ -6,7 +6,7 @@ import { useState, useEffect, createContext, useContext, useMemo, useCallback } 
 import { useClientes } from "@/hooks/use-clientes";
 import { useAuth } from "@/hooks/use-auth";
 import { generateId } from "@/lib/utils";
-import { isFontePrincipal } from "@/lib/fontes-config";
+import { isFontePrincipal, getPercentualMeta } from "@/lib/fontes-config";
 import type {
   Meta,
   RegraComissao,
@@ -486,7 +486,8 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     for (const meta of metas.filter((m) => m.mes === mes && m.ano === ano)) {
       const vendasUsuario = clientes.filter((cliente) => {
-        // Filtrar apenas clientes de fontes principais (não corretores)
+        // Para quantidade e acompanhamento geral: considerar apenas fontes principais
+        // Aqui mantemos a lista "vendasUsuario" com principais para métricas de contagem
         if (!isFontePrincipal(cliente.fonte)) {
           return false;
         }
@@ -523,12 +524,21 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       });
 
       // Somar apenas clientes PAGOS para o valor da meta
-      const clientesPagosDoMes = vendasUsuario.filter(cliente => 
-        cliente.status === "pago" && cliente.data_pagamento
-      );
+      // Para valor: somar pagos do mês do usuário ponderando por fonte (inclui corretores)
+      const usuarioMeta = users.find(u => u.nome === meta.usuario);
+      const clientesPagosUsuarioMes = clientes.filter(cliente => {
+        if (cliente.status !== "pago" || !cliente.data_pagamento) return false;
+        if (!usuarioMeta || cliente.criadoPor !== usuarioMeta.id) return false;
+        const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
+        const mesPagamento = dataPagamento.toLocaleDateString("pt-BR", { month: "long" });
+        const anoPagamento = dataPagamento.getFullYear();
+        return mesPagamento === mes && anoPagamento === ano;
+      });
 
-      const vendido = clientesPagosDoMes.reduce((acc, cliente) => {
-        return acc + parsearValor(cliente.valor);
+      const vendido = clientesPagosUsuarioMes.reduce((acc, cliente) => {
+        const valor = parsearValor(cliente.valor);
+        const peso = getPercentualMeta(cliente.fonte);
+        return acc + (isNaN(valor) ? 0 : valor * (isNaN(peso) ? 0 : peso));
       }, 0);
 
       const faltante = Math.max(0, meta.valorMeta - vendido);

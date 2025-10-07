@@ -46,6 +46,7 @@ import {
   FileText,
 } from "lucide-react";
 import type { FiltrosCliente } from "@/types/cliente";
+import { getPercentualMeta, isFonteCorretor } from "@/lib/fontes-config";
 
 export default function AdminClientesPage() {
   const {
@@ -225,7 +226,10 @@ export default function AdminClientesPage() {
     if (tipoFonteFiltro.length > 0) {
       resultado = resultado.filter((cliente) => {
         return tipoFonteFiltro.some(tipo => {
-          if (tipo === "principal") return !cliente.fonte.includes("Corretor");
+          if (tipo === "principal") {
+            // Incluir fontes principais E corretores (que contam 50% para metas)
+            return true; // Todos os clientes passam quando filtro inclui "principal"
+          }
           if (tipo === "corretor") return cliente.fonte.includes("Corretor");
           return false;
         });
@@ -295,7 +299,7 @@ export default function AdminClientesPage() {
 
   // Calcular totais
   const totais = useMemo(() => {
-    const totalPago = clientesFiltrados
+    const totalPagoBruto = clientesFiltrados
       .filter((c) => c.status === "pago")
       .reduce((acc, cliente) => {
         const valor = Number.parseFloat(
@@ -306,6 +310,21 @@ export default function AdminClientesPage() {
             .trim(),
         );
         return isNaN(valor) ? acc : acc + valor;
+      }, 0);
+
+    // Total pago ponderado por fonte (1.0 principais, 0.5 corretores)
+    const totalPagoPonderado = clientesFiltrados
+      .filter((c) => c.status === "pago")
+      .reduce((acc, cliente) => {
+        const valor = Number.parseFloat(
+          cliente.valor
+            .replace("R$", "")
+            .replace(".", "")
+            .replace(",", ".")
+            .trim(),
+        );
+        const peso = getPercentualMeta(cliente.fonte);
+        return isNaN(valor) ? acc : acc + (valor * (isNaN(peso) ? 0 : peso));
       }, 0);
 
     const totalPendente = clientesFiltrados
@@ -334,8 +353,49 @@ export default function AdminClientesPage() {
         return isNaN(valor) ? acc : acc + valor;
       }, 0);
 
-    return { totalPago, totalPendente, totalCancelado };
-  }, [clientesFiltrados]);
+    // Calcular valores dos corretores (50%)
+    const clientesCorretores = clientesFiltrados.filter(c => isFonteCorretor(c.fonte));
+    const valorBrutoCorretores = clientesCorretores
+      .filter(c => c.status === "pago")
+      .reduce((acc, cliente) => {
+        const valor = Number.parseFloat(
+          cliente.valor
+            .replace("R$", "")
+            .replace(".", "")
+            .replace(",", ".")
+            .trim(),
+        );
+        return isNaN(valor) ? acc : acc + valor;
+      }, 0);
+    const valorContadoCorretores = clientesCorretores
+      .filter(c => c.status === "pago")
+      .reduce((acc, cliente) => {
+        const valor = Number.parseFloat(
+          cliente.valor
+            .replace("R$", "")
+            .replace(".", "")
+            .replace(",", ".")
+            .trim(),
+        );
+        const peso = getPercentualMeta(cliente.fonte);
+        return isNaN(valor) ? acc : acc + (valor * (isNaN(peso) ? 0 : peso));
+      }, 0);
+
+    // Se o filtro "principal" estiver marcado, usar o ponderado; caso contrário, usar bruto
+    const usarPonderado = tipoFonteFiltro.includes("principal");
+    const totalPago = usarPonderado ? totalPagoPonderado : totalPagoBruto;
+
+    return { 
+      totalPago, 
+      totalPendente, 
+      totalCancelado,
+      corretores: {
+        total: clientesCorretores.length,
+        bruto: valorBrutoCorretores,
+        contado: valorContadoCorretores
+      }
+    };
+  }, [clientesFiltrados, tipoFonteFiltro]);
 
   const limparFiltros = () => {
     setFiltros({
@@ -422,6 +482,44 @@ export default function AdminClientesPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Card de detalhamento dos corretores (50%) */}
+          {totais.corretores.total > 0 && (
+            <div className="mb-8">
+              <Card className="bg-amber-50 border border-amber-200">
+                <CardContent className="p-6">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-amber-900 flex items-center justify-center gap-2 mb-4">
+                      🏢 Corretores (50% para metas)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <div className="text-3xl font-bold text-amber-600">
+                          {totais.corretores.total}
+                        </div>
+                        <div className="text-sm text-amber-700">Total Clientes</div>
+                      </div>
+                      <div>
+                        <div className="text-3xl font-bold text-orange-600">
+                          {totais.corretores.bruto.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </div>
+                        <div className="text-sm text-orange-700">Valor Bruto</div>
+                      </div>
+                      <div>
+                        <div className="text-3xl font-bold text-green-600">
+                          {totais.corretores.contado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </div>
+                        <div className="text-sm text-green-700">Contou (50%)</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 text-sm text-amber-700 bg-amber-100 p-3 rounded-lg">
+                      💡 Corretores contribuem com 50% do valor para metas de vendas
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between bg-primary/10">
@@ -782,7 +880,7 @@ export default function AdminClientesPage() {
                               }}
                               className="rounded border-gray-300"
                             />
-                            <span className="text-sm">🎯 Principais (contam para metas)</span>
+                            <span className="text-sm">🎯 Principais + Corretores (contam para metas)</span>
                           </label>
                           <label className="flex items-center space-x-2">
                             <input

@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { ProtectedLayout } from "@/components/protected-layout";
 import { SidebarLayout } from "@/components/sidebar-layout";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { getPercentualMeta, isFontePrincipal } from "@/lib/fontes-config";
 import { useAuth } from "@/hooks/use-auth";
 import { useClientes } from "@/hooks/use-clientes";
 import { PlusCircle, Edit, Trash2, Target, Users, DollarSign, Calendar, TrendingUp, CheckCircle, Plus } from "lucide-react";
@@ -98,8 +99,8 @@ export default function MetasPage() {
       console.log("🔍 Clientes do mês filtrados:", clientesDoMes.length);
 
       if (meta.tipo === "quantidade") {
-        // Meta de quantidade: contar todos os clientes do período
-        const atual = clientesDoMes.length;
+        // Meta de quantidade: contar apenas clientes de fontes principais no período
+        const atual = clientesDoMes.filter(c => isFontePrincipal(c.fonte)).length;
         const valorMeta = meta.valorMeta;
         const percentual = valorMeta > 0 ? Math.min((atual / valorMeta) * 100, 100) : 0;
         
@@ -112,18 +113,25 @@ export default function MetasPage() {
           faltante: Math.max(valorMeta - atual, 0)
         };
       } else {
-        // Meta de valor: somar apenas clientes PAGOS
+        // Meta de valor: somar apenas clientes PAGOS, ponderando por fonte (50% para corretores)
         const clientesPagosDoMes = clientesDoMes.filter(cliente => 
           cliente.status === "pago" && cliente.data_pagamento
         );
 
         console.log("🔍 Clientes pagos do mês:", clientesPagosDoMes.length);
 
+        let brutoCorretores = 0;
+        let contadoCorretores = 0;
         const atual = clientesPagosDoMes.reduce((acc, cliente) => {
           try {
             const valor = Number(cliente.valor.replace("R$", "").replace(/\./g, "").replace(",", "."));
-            console.log(`🔍 Cliente ${cliente.cliente}: valor=${cliente.valor}, parseado=${valor}`);
-            return acc + (isNaN(valor) ? 0 : valor);
+            const peso = getPercentualMeta(cliente.fonte);
+            console.log(`🔍 Cliente ${cliente.cliente}: valor=${cliente.valor}, parseado=${valor}, peso=${peso}`);
+            if (!isNaN(valor) && peso < 1) {
+              brutoCorretores += valor;
+              contadoCorretores += valor * (isNaN(peso) ? 0 : peso);
+            }
+            return acc + (isNaN(valor) ? 0 : valor * (isNaN(peso) ? 0 : peso));
           } catch (error) {
             console.error("🔍 Erro ao processar valor:", error);
             return acc;
@@ -139,7 +147,13 @@ export default function MetasPage() {
           atual,
           meta: valorMeta,
           percentual,
-          faltante: Math.max(valorMeta - atual, 0)
+          faltante: Math.max(valorMeta - atual, 0),
+          detalhamento: {
+            corretores: {
+              bruto: brutoCorretores,
+              contado: contadoCorretores
+            }
+          }
         };
       }
     } catch (error) {
@@ -394,6 +408,30 @@ export default function MetasPage() {
                                 </p>
                               </div>
                             </div>
+
+                          {/* Indicador visual do 50% de corretores para metas de valor */}
+                          {meta.tipo === 'valor' && (
+                            <div className="mt-3 space-y-2 rounded-md border p-3">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground">Corretores (50%) — contou</span>
+                                <span className="font-medium">
+                                  R$ {(progresso?.detalhamento?.corretores?.contado || 0).toLocaleString()}
+                                </span>
+                              </div>
+                              <Progress 
+                                value={
+                                  meta.valorMeta > 0
+                                    ? Math.min(((progresso?.detalhamento?.corretores?.contado || 0) / meta.valorMeta) * 100, 100)
+                                    : 0
+                                } 
+                                className="h-2"
+                              />
+                              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                <span>Bruto corretores</span>
+                                <span>R$ {(progresso?.detalhamento?.corretores?.bruto || 0).toLocaleString()}</span>
+                              </div>
+                            </div>
+                          )}
                           </div>
 
                           {/* Status Motivacional */}

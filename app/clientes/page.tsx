@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Edit, PlusCircle, Search, Trash2, Filter, X, Eye } from "lucide-react";
+import { getPercentualMeta, isFonteCorretor } from "@/lib/fontes-config";
 import { useClientes } from "@/hooks/use-clientes";
 import { useAuth } from "@/hooks/use-auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -187,7 +188,10 @@ export default function ClientesPage() {
     if (usuarioFiltro !== "todos" && cliente.usuarios !== usuarioFiltro) return false;
     if (fonteFiltro !== "todos" && cliente.fonte !== fonteFiltro) return false;
     if (tipoFonteFiltro !== "todos") {
-      if (tipoFonteFiltro === "principal" && cliente.fonte.includes("Corretor")) return false;
+      if (tipoFonteFiltro === "principal") {
+        // Incluir fontes principais E corretores (que contam 50% para metas)
+        return true; // Todos os clientes passam quando filtro é "principal"
+      }
       if (tipoFonteFiltro === "corretor" && !cliente.fonte.includes("Corretor")) return false;
     }
     
@@ -281,6 +285,29 @@ export default function ClientesPage() {
     .filter(c => c.status === "cancelado")
     .reduce((acc, c) => acc + parseValor(c.valor), 0);
 
+  // Calcular valores dos corretores (50%)
+  const clientesCorretores = clientesFiltrados.filter(c => isFonteCorretor(c.fonte));
+  const valorBrutoCorretores = clientesCorretores
+    .filter(c => c.status === "pago")
+    .reduce((acc, c) => acc + parseValor(c.valor), 0);
+  const valorContadoCorretores = clientesCorretores
+    .filter(c => c.status === "pago")
+    .reduce((acc, c) => {
+      const valor = parseValor(c.valor);
+      const peso = getPercentualMeta(c.fonte);
+      return acc + (valor * (isNaN(peso) ? 0 : peso));
+    }, 0);
+
+  // Total pago exibido: quando tipoFonteFiltro === "principal", ponderar corretores (50%)
+  const totalPagoPonderado = clientesFiltrados
+    .filter(c => c.status === "pago")
+    .reduce((acc, c) => {
+      const valor = parseValor(c.valor);
+      const peso = getPercentualMeta(c.fonte);
+      return acc + (isNaN(valor) ? 0 : valor * (isNaN(peso) ? 0 : peso));
+    }, 0);
+  const totalPagoExibido = tipoFonteFiltro === "principal" ? totalPagoPonderado : totalPago;
+
   return (
     <ProtectedLayout>
       <SidebarLayout>
@@ -326,7 +353,7 @@ export default function ClientesPage() {
               <span className="text-gray-500 mb-2">Total Pago</span>
               <span className="text-green-600 text-2xl font-bold flex items-center gap-2">
                 <span>✔️</span>
-                {totalPago.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                {totalPagoExibido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
               </span>
             </div>
             <div className="border rounded-lg p-6 flex flex-col items-start">
@@ -377,6 +404,44 @@ export default function ClientesPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Card de detalhamento dos corretores (50%) */}
+          {clientesCorretores.length > 0 && (
+            <div className="mb-6">
+              <Card className="bg-amber-50 border border-amber-200">
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-amber-900 flex items-center justify-center gap-2">
+                      🏢 Corretores (50% para metas)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                      <div>
+                        <div className="text-2xl font-bold text-amber-600">
+                          {clientesCorretores.length}
+                        </div>
+                        <div className="text-sm text-amber-700">Total Clientes</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-orange-600">
+                          {valorBrutoCorretores.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </div>
+                        <div className="text-sm text-orange-700">Valor Bruto</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">
+                          {valorContadoCorretores.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </div>
+                        <div className="text-sm text-green-700">Contou (50%)</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 text-xs text-amber-700">
+                      💡 Corretores contribuem com 50% do valor para metas de vendas
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Card adicional para ADMIN - Estatísticas Gerais do Sistema */}
           {isAdmin && (
@@ -661,7 +726,7 @@ export default function ClientesPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="todos">🌐 Todos os tipos</SelectItem>
-                          <SelectItem value="principal">🎯 Principais (contam para metas)</SelectItem>
+                          <SelectItem value="principal">🎯 Principais + Corretores (contam para metas)</SelectItem>
                           <SelectItem value="corretor">⚠️ Corretores (não contam para metas)</SelectItem>
                           {isAdmin && (
                             <>
