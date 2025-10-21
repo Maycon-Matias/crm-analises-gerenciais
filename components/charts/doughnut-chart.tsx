@@ -42,7 +42,7 @@ export function DoughnutChart({
   formatValues = true,
   cutout = "60%"
 }: DoughnutChartProps) {
-  const options: ChartOptions = {
+  const options: ChartOptions<'doughnut'> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -64,7 +64,7 @@ export function DoughnutChart({
           label: function(context) {
             const label = context.label || '';
             const value = context.parsed;
-            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+            const total = context.dataset.data.reduce((a, b) => (a as number) + (b as number), 0) as number;
             const percentage = ((value / total) * 100).toFixed(1);
             
             if (formatValues) {

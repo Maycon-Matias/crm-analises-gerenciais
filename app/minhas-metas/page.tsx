@@ -198,7 +198,7 @@ export default function MinhasMetasPage() {
                           <div>
                             <p className="text-sm text-gray-600">Clientes Pagos</p>
                             <p className="text-lg font-bold text-green-600">
-                              {progresso?.clientesPagos} / {progresso?.totalClientes}
+                              {progresso?.clientesPagos} / {(progresso?.clientesPagos || 0) + (progresso?.clientesPendentes || 0)}
                             </p>
                           </div>
                         </div>

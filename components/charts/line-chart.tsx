@@ -48,7 +48,7 @@ export function LineChart({
   showLegend = true,
   formatYAxis = true 
 }: LineChartProps) {
-  const options: ChartOptions = {
+  const options: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {

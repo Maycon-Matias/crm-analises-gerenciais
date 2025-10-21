@@ -38,6 +38,10 @@ export async function GET(_req: NextRequest) {
       }
     }
     
+    if (!client) {
+      throw new Error("Falha ao conectar com o MongoDB após múltiplas tentativas");
+    }
+    
     const db = client.db("crm");
     const collection = db.collection("metas");
 
@@ -62,7 +66,8 @@ export async function GET(_req: NextRequest) {
     console.error("Erro ao buscar metas:", error);
     
     // Retornar erro mais específico baseado no tipo de erro
-    if (error.name === 'MongoServerSelectionError') {
+    const err = error as Error & { name?: string };
+    if (err.name === 'MongoServerSelectionError') {
       return NextResponse.json({ 
         error: "Erro de conexão com o banco de dados. Verifique se o MongoDB está acessível.",
         details: "Server selection timed out"
@@ -71,7 +76,7 @@ export async function GET(_req: NextRequest) {
     
     return NextResponse.json({ 
       error: "Erro ao buscar metas",
-      details: error.message 
+      details: err.message || "Erro desconhecido"
     }, { status: 500 });
   }
 }

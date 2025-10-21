@@ -105,7 +105,11 @@ export default function ConfiguracoesPage() {
       });
       return;
     }
-    criarBackup(backupNome, backupDescricao);
+    const configuracaoAtual = {
+      sistema: configSistema,
+      negocio: configNegocio,
+    };
+    criarBackup(backupNome, backupDescricao, configuracaoAtual);
     setBackupNome("");
     setBackupDescricao("");
     toast({
