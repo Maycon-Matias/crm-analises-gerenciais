@@ -72,4 +72,17 @@ export async function testConnection() {
   }
 }
 
+// Função connectDB() para compatibilidade com requisitos Vercel
+export async function connectDB() {
+  try {
+    const client = await clientPromise;
+    const db = client.db(process.env.DB_NAME || "crm");
+    console.log("🔌 Conectado ao banco de dados via connectDB()");
+    return { client, db };
+  } catch (error) {
+    console.error("❌ Erro ao conectar via connectDB():", error);
+    throw error;
+  }
+}
+
 export default clientPromise; 
