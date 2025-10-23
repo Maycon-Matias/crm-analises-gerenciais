@@ -966,23 +966,24 @@ export default function AdminClientesPage() {
 
               {clientesFiltrados.length > 0 ? (
                 <>
-                  <div className="overflow-x-auto">
+                  {/* Desktop Table - Visível apenas em telas grandes */}
+                  <div className="hidden lg:block overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-primary/5">
-                          <TableHead>Cliente</TableHead>
-                          <TableHead>Produto</TableHead>
-                          <TableHead>Banco</TableHead>
-                          <TableHead>Fonte</TableHead>
-                          <TableHead>Valor</TableHead>
-                          <TableHead>Data</TableHead>
-                          <TableHead>Previsão</TableHead>
-                          <TableHead>Mês</TableHead>
-                          <TableHead>Vendedor</TableHead>
-                          <TableHead>CPF</TableHead>
-                          <TableHead>Telefone</TableHead>
-                          <TableHead>Observações</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
+                          <TableHead className="min-w-[200px]">Cliente</TableHead>
+                          <TableHead className="min-w-[120px]">Produto</TableHead>
+                          <TableHead className="min-w-[120px]">Banco</TableHead>
+                          <TableHead className="min-w-[120px]">Fonte</TableHead>
+                          <TableHead className="min-w-[100px]">Valor</TableHead>
+                          <TableHead className="min-w-[100px]">Data</TableHead>
+                          <TableHead className="min-w-[100px]">Previsão</TableHead>
+                          <TableHead className="min-w-[80px]">Mês</TableHead>
+                          <TableHead className="min-w-[100px]">Vendedor</TableHead>
+                          <TableHead className="min-w-[120px]">CPF</TableHead>
+                          <TableHead className="min-w-[120px]">Telefone</TableHead>
+                          <TableHead className="min-w-[150px]">Observações</TableHead>
+                          <TableHead className="min-w-[80px] text-right sticky right-0 bg-white">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1046,7 +1047,7 @@ export default function AdminClientesPage() {
                                 <span className="text-gray-400 text-sm">-</span>
                               )}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right sticky right-0 bg-white">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" className="h-8 w-8 p-0">
@@ -1096,6 +1097,132 @@ export default function AdminClientesPage() {
                       </TableBody>
                     </Table>
                   </div>
+
+                  {/* Mobile/Tablet Cards - Visível apenas em telas pequenas e médias */}
+                  <div className="lg:hidden space-y-4">
+                    {clientesFiltrados.map((cliente) => (
+                      <Card key={cliente.id} className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              title={cliente.status.charAt(0).toUpperCase() + cliente.status.slice(1)}
+                              className={`inline-block w-3 h-3 rounded-full
+                                ${cliente.status === "pago" ? "bg-green-500" : ""}
+                                ${cliente.status === "pendente" ? "bg-yellow-400" : ""}
+                                ${cliente.status === "cancelado" ? "bg-red-500" : ""}
+                              `}
+                            />
+                            <h3 className="font-semibold text-lg">{cliente.cliente}</h3>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Abrir menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link href={`/clientes/editar/${cliente.id}`}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Editar
+                                </Link>
+                              </DropdownMenuItem>
+                              {cliente.status === "pendente" && (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    const hoje = new Date();
+                                    const dataHoje = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+                                    marcarComoPago(cliente.id, dataHoje);
+                                  }}
+                                >
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  Marcar como pago
+                                </DropdownMenuItem>
+                              )}
+                              {cliente.status === "pendente" && (
+                                <DropdownMenuItem
+                                  onClick={() => marcarComoCancelado(cliente.id)}
+                                >
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  Cancelar
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                onClick={() => removerCliente(cliente.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-gray-500">Produto:</span>
+                            <p className="font-medium">{cliente.produto}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Banco:</span>
+                            <p className="font-medium">{cliente.banco}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Fonte:</span>
+                            <p className="font-medium">{cliente.fonte}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Valor:</span>
+                            <p className="font-medium text-green-600">
+                              {(!isNaN(Number(cliente.valor)) && cliente.valor !== "") ? Number(cliente.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : cliente.valor}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Data:</span>
+                            <p className="font-medium">
+                              {cliente.status === "pago"
+                                ? (cliente.data_pagamento
+                                    ? new Date(cliente.data_pagamento + 'T00:00:00').toLocaleDateString("pt-BR")
+                                    : new Date(cliente.data + 'T00:00:00').toLocaleDateString("pt-BR") + " (s/ data pagto)" )
+                                : new Date(cliente.data + 'T00:00:00').toLocaleDateString("pt-BR")}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Vendedor:</span>
+                            <p className="font-medium">{cliente.usuarios || "-"}</p>
+                          </div>
+                          {cliente.data_previsao_pagamento && (
+                            <div className="col-span-2">
+                              <span className="text-gray-500">Previsão:</span>
+                              <p className="font-medium text-blue-600">
+                                {new Date(cliente.data_previsao_pagamento + 'T00:00:00').toLocaleDateString("pt-BR")}
+                              </p>
+                            </div>
+                          )}
+                          {cliente.cpf && (
+                            <div>
+                              <span className="text-gray-500">CPF:</span>
+                              <p className="font-medium">{cliente.cpf}</p>
+                            </div>
+                          )}
+                          {cliente.telefone && (
+                            <div>
+                              <span className="text-gray-500">Telefone:</span>
+                              <p className="font-medium">{cliente.telefone}</p>
+                            </div>
+                          )}
+                          {cliente.observacoes && (
+                            <div className="col-span-2">
+                              <span className="text-gray-500">Observações:</span>
+                              <p className="font-medium text-sm">{cliente.observacoes}</p>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+
                   <div className="mt-4 text-sm text-gray-500">
                     Mostrando {clientesFiltrados.length} de {clientes.length} clientes
                   </div>
