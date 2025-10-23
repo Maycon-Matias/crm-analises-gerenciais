@@ -1,6 +1,7 @@
 // Interface para o modelo Cliente (compatível com MongoDB nativo)
 export interface ICliente {
   _id?: string;
+  id?: string;
   cliente: string;
   produto: string;
   banco: string;

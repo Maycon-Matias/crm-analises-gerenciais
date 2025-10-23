@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, createContext, useContext, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import type { Cliente } from "@/types/cliente";
+import type { Cliente, StatusCliente } from "@/types/cliente";
 import { opcoesPredefinidas } from "@/types/cliente";
 import { 
   isFontePrincipal, 
@@ -52,7 +52,7 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
       
       // Usar API diferente baseada no papel do usuário
       let apiUrl = "/api/clientes/todos";
-      if (user?.role !== "admin") {
+      if (user?.role !== "admin" && user) {
         apiUrl = `/api/clientes/meus?userId=${user.id}&userRole=${user.role}`;
       }
       
@@ -159,7 +159,7 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
       ...cliente,
       usuarios: user.nome,
       criadoPor: user.id,
-      status: "pendente",
+      status: "pendente" as StatusCliente,
     };
 
     const res = await fetch("/api/clientes", {

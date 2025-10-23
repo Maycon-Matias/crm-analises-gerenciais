@@ -41,8 +41,8 @@ export function usePrevisoes() {
         throw new Error("Erro ao buscar notificações");
       }
 
-      const data = await response.json();
-      setNotificacoes([data]);
+      const responseData = await response.json();
+      setNotificacoes([responseData]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido");
       console.error("Erro ao buscar notificações:", err);

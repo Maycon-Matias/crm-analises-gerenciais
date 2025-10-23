@@ -9,6 +9,7 @@ import {
   useCallback,
 } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import type { LogSistema, NotificacaoSistema, TemplateCampo, BackupSistema, TemplateSistema, Configuracao } from "@/types/sistema";
 
 interface SistemaContextType {
   logs: LogSistema[];
@@ -23,7 +24,7 @@ interface SistemaContextType {
   criarBackup: (
     nome: string,
     descricao: string,
-    configuracao: Configuracao,
+    configuracao: any,
   ) => void;
   restaurarBackup: (backupId: string) => Configuracao | null;
   limparLogs: () => void;
@@ -48,7 +49,7 @@ const TEMPLATES_PADRAO: TemplateSistema[] = [
     id: "template-pf",
     nome: "Cliente Pessoa Física",
     descricao: "Campos essenciais para cadastro de pessoa física",
-    categoria: "pessoa-fisica",
+    categoria: "cliente",
     ativo: true,
     criadoEm: new Date().toISOString(),
     criadoPor: "Sistema",
@@ -79,7 +80,7 @@ const TEMPLATES_PADRAO: TemplateSistema[] = [
     id: "template-pj",
     nome: "Cliente Pessoa Jurídica",
     descricao: "Campos essenciais para cadastro de pessoa jurídica",
-    categoria: "pessoa-juridica",
+    categoria: "cliente",
     ativo: true,
     criadoEm: new Date().toISOString(),
     criadoPor: "Sistema",
@@ -115,7 +116,7 @@ const TEMPLATES_PADRAO: TemplateSistema[] = [
     id: "template-financeiro",
     nome: "Dados Financeiros",
     descricao: "Campos para informações financeiras e bancárias",
-    categoria: "financeiro",
+    categoria: "geral",
     ativo: true,
     criadoEm: new Date().toISOString(),
     criadoPor: "Sistema",
@@ -237,14 +238,18 @@ export function SistemaProvider({ children }: { children: ReactNode }) {
   const criarBackup = useCallback((
     nome: string,
     descricao: string,
-    configuracao: Configuracao,
+    configuracao: any,
   ) => {
     const novoBackup: BackupSistema = {
       id: Date.now().toString(),
       nome,
       descricao,
       configuracao,
+      data: new Date().toISOString(),
       criadoEm: new Date().toISOString(),
+      tamanho: "0 KB",
+      tipo: "manual",
+      status: "sucesso",
       criadoPor: user?.nome || "Sistema",
     };
 
