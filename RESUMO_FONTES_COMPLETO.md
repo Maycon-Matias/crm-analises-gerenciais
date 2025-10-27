@@ -29,8 +29,9 @@
 | **Corretor(GE)** | Vendas via corretor GE | ✅ Ativo |
 | **Corretor(CA)** | Vendas via corretor CA | ✅ Ativo |
 | **Corretor(BI)** | Vendas via corretor BI | ✅ Ativo |
+| **Corretor(SA)** | Vendas via corretor SA (Sabrina) | ✅ Ativo |
 
-**Total: 8 fontes de corretor** - Nenhuma conta para metas do mês principal
+**Total: 9 fontes de corretor** - Nenhuma conta para metas do mês principal
 
 ---
 
@@ -43,7 +44,7 @@ SISTEMA DE FONTES COMPLETO
 │   ├── Contam para performance
 │   └── Contam para relatórios principais
 │
-├── 🟡 FONTES CORRETOR: 8 fontes
+├── 🟡 FONTES CORRETOR: 9 fontes
 │   ├── NÃO contam para metas do mês
 │   ├── NÃO contam para performance principal
 │   └── Contam para relatórios de corretor

@@ -64,6 +64,7 @@ Foi implementado um filtro sistemático em todas as funções de cálculo de met
 - Corretor(GE)
 - Corretor(CA)
 - Corretor(BI)
+- Corretor(SA)
 
 ## Resultado
 Agora todas as métricas, metas e comissões consideram apenas clientes de fontes principais, excluindo completamente os corretores dos cálculos de performance dos vendedores.

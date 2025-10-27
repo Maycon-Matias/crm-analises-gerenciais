@@ -30,7 +30,8 @@ export const FONTES_CONFIG: FonteConfig[] = [
   { nome: "Corretor(WE)", categoria: "corretor" },
   { nome: "Corretor(GE)", categoria: "corretor" },
   { nome: "Corretor(CA)", categoria: "corretor" },
-  { nome: "Corretor(BI)", categoria: "corretor" }
+  { nome: "Corretor(BI)", categoria: "corretor" },
+  { nome: "Corretor(SA)", categoria: "corretor" }
 ];
 ```
 

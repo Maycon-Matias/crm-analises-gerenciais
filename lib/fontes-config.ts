@@ -125,6 +125,13 @@ export const FONTES_CONFIG: FonteConfig[] = [
     descricao: "Vendas via corretor BI",
     ativo: true,
     percentualMeta: 0.5
+  },
+  {
+    nome: "Corretor(SA)",
+    categoria: "corretor",
+    descricao: "Vendas via corretor SA (Sabrina)",
+    ativo: true,
+    percentualMeta: 0.5
   }
 ];
 
