@@ -40,9 +40,9 @@ export default function ClientesPage() {
   // Função para verificar se o vendedor pode ver dados sensíveis do cliente
   const podeVerDadosSensiveis = (cliente: any) => {
     if (isAdmin) return true;
-    if (user?.role === "user" || user?.role === "vendedor") {
+    if (user && user.role === "user") {
       // Vendedor pode ver apenas seus próprios clientes
-      return cliente.usuarios === user?.nome || cliente.criadoPor === user?.nome;
+      return cliente.usuarios === user.nome || cliente.criadoPor === user.nome;
     }
     return false;
   };
