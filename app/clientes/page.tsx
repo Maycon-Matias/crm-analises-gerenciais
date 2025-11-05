@@ -37,6 +37,16 @@ export default function ClientesPage() {
   const isAdmin = user?.role === "admin";
   const searchParams = useSearchParams();
   
+  // Função para verificar se o vendedor pode ver dados sensíveis do cliente
+  const podeVerDadosSensiveis = (cliente: any) => {
+    if (isAdmin) return true;
+    if (user?.role === "user" || user?.role === "vendedor") {
+      // Vendedor pode ver apenas seus próprios clientes
+      return cliente.usuarios === user?.nome || cliente.criadoPor === user?.nome;
+    }
+    return false;
+  };
+  
   console.log("📊 Estado inicial:", { 
     totalClientes: clientes.length, 
     isAdmin, 
@@ -312,41 +322,6 @@ export default function ClientesPage() {
     <ProtectedLayout>
       <SidebarLayout>
         <div className="container mx-auto py-10 px-4">
-          {/* Indicador de status dos clientes */}
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h3 className="text-lg font-medium text-blue-800 mb-2">Status dos Clientes</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="font-medium">Total carregados:</span> {clientes.length}
-              </div>
-              <div>
-                <span className="font-medium">Filtrados:</span> {clientesFiltrados.length}
-              </div>
-              <div>
-                <span className="font-medium">Usuário:</span> {user?.nome || 'N/A'}
-              </div>
-              <div>
-                <span className="font-medium">Role:</span> {user?.role || 'N/A'}
-              </div>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <Button 
-                onClick={() => window.location.reload()} 
-                variant="outline" 
-                size="sm"
-              >
-                🔄 Recarregar
-              </Button>
-              <Button 
-                onClick={() => console.log('Estado atual:', { user, clientes, clientesFiltrados })} 
-                variant="outline" 
-                size="sm"
-              >
-                📊 Debug Console
-              </Button>
-            </div>
-          </div>
-
           {/* Cards de resumo para todos os usuários */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="border rounded-lg p-6 flex flex-col items-start">
@@ -771,8 +746,8 @@ export default function ClientesPage() {
                           <TableHead>Data</TableHead>
                           <TableHead>Mês</TableHead>
                           <TableHead>Vendedor</TableHead>
-                          {isAdmin && <TableHead>CPF</TableHead>}
-                          {isAdmin && <TableHead>Telefone</TableHead>}
+                          {(isAdmin || clientesFiltrados.some(c => podeVerDadosSensiveis(c))) && <TableHead>CPF</TableHead>}
+                          {(isAdmin || clientesFiltrados.some(c => podeVerDadosSensiveis(c))) && <TableHead>Telefone</TableHead>}
                           <TableHead>Observações</TableHead>
                           <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
@@ -809,8 +784,8 @@ export default function ClientesPage() {
                             <TableCell>{cliente.data}</TableCell>
                             <TableCell>{cliente.mes}</TableCell>
                             <TableCell>{cliente.usuarios || cliente.criadoPor}</TableCell>
-                            {isAdmin && <TableCell>{cliente.cpf || "-"}</TableCell>}
-                            {isAdmin && <TableCell>{cliente.telefone || "-"}</TableCell>}
+                            {podeVerDadosSensiveis(cliente) && <TableCell>{cliente.cpf || "-"}</TableCell>}
+                            {podeVerDadosSensiveis(cliente) && <TableCell>{cliente.telefone || "-"}</TableCell>}
                             <TableCell>{cliente.observacoes || "-"}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
@@ -909,7 +884,7 @@ export default function ClientesPage() {
                       <label className="text-sm font-medium text-gray-700">Fonte</label>
                       <p className="text-sm text-gray-900">{clienteSelecionado.fonte}</p>
                     </div>
-                    {isAdmin && (
+                    {podeVerDadosSensiveis(clienteSelecionado) && (
                       <>
                         <div>
                           <label className="text-sm font-medium text-gray-700">CPF</label>
