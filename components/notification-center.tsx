@@ -20,30 +20,13 @@ import {
   X,
 } from "lucide-react";
 import { useSistema } from "@/hooks/use-sistema";
-import { useAuth } from "@/hooks/use-auth";
-import React from "react";
-import { formatarDataHoraRobusta } from "@/lib/utils";
 
 export function NotificationCenter() {
   const { notificacoes, marcarNotificacaoLida, limparNotificacoes } =
     useSistema();
   const [open, setOpen] = useState(false);
-  const { user } = useAuth();
 
-  // CORREÇÃO: Otimizar filtros com useMemo
-  const { notificacoesDoUsuario, notificacaoNaoLidas } = React.useMemo(() => {
-    if (!user) {
-      return { notificacoesDoUsuario: [], notificacaoNaoLidas: [] };
-    }
-
-    const notificacoesDoUsuario = user.role === "admin" 
-      ? notificacoes 
-      : notificacoes.filter(n => n.usuarioId === user.id || !n.usuarioId); // Incluir notificações sem usuarioId (sistema)
-
-    const notificacaoNaoLidas = notificacoesDoUsuario.filter((n) => !n.lida);
-
-    return { notificacoesDoUsuario, notificacaoNaoLidas };
-  }, [notificacoes, user]);
+  const notificacaoNaoLidas = notificacoes.filter((n) => !n.lida);
 
   const getIcon = (tipo: string) => {
     switch (tipo) {
@@ -67,7 +50,7 @@ export function NotificationCenter() {
       case "warning":
         return "bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800";
       case "error":
-        return "bg-red-50 border-red-200 dark:bg-red-950 dark:border-green-800";
+        return "bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800";
       default:
         return "bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800";
     }
@@ -101,7 +84,7 @@ export function NotificationCenter() {
                     {notificacaoNaoLidas.length} novas
                   </Badge>
                 )}
-                {notificacoesDoUsuario.length > 0 && (
+                {notificacoes.length > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -117,9 +100,9 @@ export function NotificationCenter() {
           </CardHeader>
           <CardContent className="p-0">
             <ScrollArea className="h-80">
-                          {notificacoesDoUsuario.length > 0 ? (
-              <div className="space-y-2 p-3">
-                {notificacoesDoUsuario.slice(0, 10).map((notificacao) => (
+              {notificacoes.length > 0 ? (
+                <div className="space-y-2 p-3">
+                  {notificacoes.slice(0, 10).map((notificacao) => (
                     <div
                       key={notificacao.id}
                       className={`p-3 rounded-lg border transition-all duration-200 ${getBgColor(notificacao.tipo, notificacao.lida)}`}
@@ -137,12 +120,15 @@ export function NotificationCenter() {
                               {notificacao.mensagem}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {formatarDataHoraRobusta(notificacao.criadaEm, {
-                                day: "2-digit",
-                                month: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {new Date(notificacao.criadaEm + 'T00:00:00').toLocaleString(
+                                "pt-BR",
+                                {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
                             </p>
                           </div>
                         </div>

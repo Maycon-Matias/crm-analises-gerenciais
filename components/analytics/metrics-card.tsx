@@ -3,12 +3,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import React from "react";
+import { LucideIcon } from "lucide-react";
 
 interface MetricsCardProps {
   title: string;
   value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   change?: {
     value: number;
     isPositive: boolean;

@@ -48,7 +48,7 @@ export function BarChart({
   formatYAxis = true,
   horizontal = false
 }: BarChartProps) {
-  const options: ChartOptions<'bar'> = {
+  const options: ChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     indexAxis: horizontal ? 'y' as const : 'x' as const,

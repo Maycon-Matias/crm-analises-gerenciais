@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useClientes } from "@/hooks/use-clientes";
-import { isFontePrincipal, getPercentualMeta, isFonteCorretor } from "@/lib/fontes-config";
 import { Target, TrendingUp, DollarSign, Users } from "lucide-react";
 import Link from "next/link";
 
@@ -28,11 +27,11 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
               meta.ano === ano
   );
 
-  // Filtrar clientes do vendedor para o período (para QUANTIDADE apenas fontes principais)
+  // Filtrar clientes do vendedor para o período
   const meusClientes = clientes.filter((cliente) => {
     if (cliente.criadoPor !== user?.id) return false;
     
-    // Para clientes PAGOS: usar data_pagamento para cálculo de receita
+    // Para clientes PAGOS: usar data_pagamento para cálculo
     if (cliente.status === "pago" && cliente.data_pagamento) {
       const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
       const mesPagamento = dataPagamento.toLocaleDateString("pt-BR", { month: "long" });
@@ -40,64 +39,52 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
       return mesPagamento === mes && anoPagamento === ano;
     }
     
-    // Para clientes PENDENTES/CANCELADOS: usar data de cadastro para contagem
+    // Para clientes PENDENTES/CANCELADOS: usar data de cadastro apenas para contagem
     const dataCadastro = new Date(cliente.data + 'T00:00:00');
     const mesCadastro = dataCadastro.toLocaleDateString("pt-BR", { month: "long" });
     const anoCadastro = dataCadastro.getFullYear();
     return mesCadastro === mes && anoCadastro === ano;
   });
 
-  // Calcular valores
-  const calcularValores = () => {
-    // Para metas de valor: usar apenas clientes PAGOS (data de pagamento)
+  // Calcular progresso
+  const calcularProgresso = () => {
+    if (!minhaMeta) return null;
+
+    // Somar apenas clientes PAGOS para o valor da meta
     const clientesPagosDoMes = meusClientes.filter(cliente => 
       cliente.status === "pago" && cliente.data_pagamento
     );
 
-    // Valor recebido ponderado pela fonte (50% para corretores)
-    let brutoCorretores = 0;
-    let contadoCorretores = 0;
-    const valorRecebido = clientesPagosDoMes.reduce((acc, cliente) => {
+    const valorAtual = clientesPagosDoMes.reduce((acc, cliente) => {
       const valor = Number(cliente.valor.replace("R$", "").replace(/\./g, "").replace(",", "."));
-      const peso = getPercentualMeta(cliente.fonte);
-      if (isFonteCorretor(cliente.fonte)) {
-        brutoCorretores += isNaN(valor) ? 0 : valor;
-        contadoCorretores += isNaN(valor) ? 0 : valor * (isNaN(peso) ? 0 : peso);
-      }
-      return acc + (isNaN(valor) ? 0 : valor * (isNaN(peso) ? 0 : peso));
+      return acc + (isNaN(valor) ? 0 : valor);
     }, 0);
 
-    // Para contagem: usar todos os clientes (data de cadastro)
-    // Para contagem de clientes, considerar apenas fontes principais
-    const totalClientes = meusClientes.filter(c => isFontePrincipal(c.fonte)).length;
-    const clientesPagos = clientesPagosDoMes.filter(c => isFontePrincipal(c.fonte)).length;
-    const clientesPendentes = meusClientes.filter(c => c.status === "pendente" && isFontePrincipal(c.fonte)).length;
+    const percentual = (valorAtual / minhaMeta.valorMeta) * 100;
+    const clientesPagos = clientesPagosDoMes.length;
+    const clientesPendentes = meusClientes.filter(c => c.status === "pendente").length;
 
     return {
-      valorRecebido,
-      totalClientes,
+      valorAtual,
+      valorMeta: minhaMeta.valorMeta,
+      percentual: Math.min(percentual, 100),
       clientesPagos,
       clientesPendentes,
-      detalhamento: {
-        corretores: {
-          bruto: brutoCorretores,
-          contado: contadoCorretores
-        }
-      }
+      totalClientes: meusClientes.length
     };
   };
 
-  const progresso = calcularValores();
+  const progresso = calcularProgresso();
 
   // Determinar status da meta
   const getStatusMeta = () => {
-    if (!minhaMeta) return { status: "sem-meta", label: "Sem meta", color: "bg-gray-100 text-gray-600" };
+    if (!progresso) return { status: "sem-meta", label: "Sem meta", color: "bg-gray-100 text-gray-600" };
     
-    if (progresso.valorRecebido >= minhaMeta.valorMeta) {
+    if (progresso.percentual >= 100) {
       return { status: "concluida", label: "Meta atingida!", color: "bg-green-100 text-green-800" };
-    } else if (progresso.valorRecebido >= minhaMeta.valorMeta * 0.75) {
+    } else if (progresso.percentual >= 75) {
       return { status: "proximo", label: "Próximo da meta", color: "bg-blue-100 text-blue-800" };
-    } else if (progresso.valorRecebido >= minhaMeta.valorMeta * 0.5) {
+    } else if (progresso.percentual >= 50) {
       return { status: "andamento", label: "Em andamento", color: "bg-yellow-100 text-yellow-800" };
     } else {
       return { status: "atrasado", label: "Precisa acelerar", color: "bg-red-100 text-red-800" };
@@ -163,16 +150,10 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-medium text-gray-700">Progresso</span>
               <span className="text-sm text-gray-600">
-                {progresso?.valorRecebido.toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL"
-                })} de {minhaMeta.valorMeta.toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL"
-                })}
+                {progresso?.percentual.toFixed(1)}% concluído
               </span>
             </div>
-            <Progress value={(progresso?.valorRecebido / minhaMeta.valorMeta) * 100} className="h-2" />
+            <Progress value={progresso?.percentual} className="h-2" />
           </div>
 
           {/* Métricas Rápidas */}
@@ -183,7 +164,7 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
                 <span className="text-xs text-gray-600">Atual</span>
               </div>
               <div className="text-lg font-bold text-blue-600">
-                {progresso?.valorRecebido.toLocaleString("pt-BR", {
+                {progresso?.valorAtual.toLocaleString("pt-BR", {
                   style: "currency",
                   currency: "BRL"
                 })}
@@ -206,21 +187,8 @@ export function VendedorMetaResumo({ mes, ano }: VendedorMetaResumoProps) {
                 <span className="text-xs text-gray-600">Faltam</span>
               </div>
               <div className="text-lg font-bold text-purple-600">
-                {((minhaMeta.valorMeta - (progresso?.valorRecebido || 0)) / 1000).toFixed(1)}k
+                {((minhaMeta.valorMeta - (progresso?.valorAtual || 0)) / 1000).toFixed(1)}k
               </div>
-            </div>
-          </div>
-
-          {/* Detalhamento Corretores */}
-          <div className="mt-4 rounded-md border bg-white p-3">
-            <div className="text-xs text-gray-600 mb-1">Corretores (50%)</div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Bruto corretores</span>
-              <span className="font-medium">{(progresso?.detalhamento?.corretores?.bruto || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Contou para meta</span>
-              <span className="font-medium">{(progresso?.detalhamento?.corretores?.contado || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
             </div>
           </div>
         </div>

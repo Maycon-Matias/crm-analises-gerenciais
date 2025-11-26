@@ -19,7 +19,6 @@ import {
   Settings,
   Bell,
   Activity,
-  Calendar,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useClientes } from "@/hooks/use-clientes";
@@ -62,12 +61,6 @@ const adminMenuItems = [
     title: "Todos os Clientes",
     href: "/admin/clientes",
     icon: Users,
-    badge: null,
-  },
-  {
-    title: "Previsões de Pagamento",
-    href: "/previsoes-pagamento",
-    icon: Calendar,
     badge: null,
   },
   {

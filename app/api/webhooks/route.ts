@@ -32,9 +32,9 @@ export async function GET(req: NextRequest) {
 }
 
 // POST - Criar novo webhook
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await _req.json();
+    const body = await req.json();
     const client = await clientPromise;
     const db = client.db("crm");
     const collection = db.collection("webhooks");

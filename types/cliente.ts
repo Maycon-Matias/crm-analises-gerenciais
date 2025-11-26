@@ -12,8 +12,7 @@ export type Cliente = {
   usuarios: string;
   status: StatusCliente;
   criadoPor: string;
-  data_previsao_pagamento?: string; // Data prevista para pagamento (definida pelo vendedor)
-  data_pagamento?: string; // Data em que o pagamento foi realizado (confirmada pelo admin)
+  data_pagamento?: string; // Data em que o pagamento foi realizado
   cpf?: string; // CPF do cliente (opcional)
   telefone?: string; // Telefone do cliente (opcional)
   observacoes?: string; // Observações adicionais (opcional)
@@ -61,7 +60,6 @@ export const opcoesPredefinidas = {
     "Amigoz",
     "Digito",
     "Banco Parana",
-    "Nossa Fintech",
   ],
   fontes: [
     "Corretor(TI)",

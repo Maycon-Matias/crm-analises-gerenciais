@@ -13,7 +13,6 @@ import {
 import { useClientes } from "@/hooks/use-clientes";
 import { useAuth } from "@/hooks/use-auth";
 import { useSistema } from "@/hooks/use-sistema";
-import { isFontePrincipal } from "@/lib/fontes-config";
 import { useEffect, useState } from "react";
 
 export function AdvancedStats() {
@@ -34,15 +33,13 @@ export function AdvancedStats() {
 
   const clientesHoje = hoje
     ? clientes.filter(
-        (c) => isFontePrincipal(c.fonte) && 
-               new Date(c.data + 'T00:00:00').toDateString() === hoje.toDateString(),
+        (c) => new Date(c.data + 'T00:00:00').toDateString() === hoje.toDateString(),
       ).length
     : 0;
 
   const clientesOntem = ontem
     ? clientes.filter(
-        (c) => isFontePrincipal(c.fonte) && 
-               new Date(c.data + 'T00:00:00').toDateString() === ontem.toDateString(),
+        (c) => new Date(c.data + 'T00:00:00').toDateString() === ontem.toDateString(),
       ).length
     : 0;
 
@@ -53,21 +50,18 @@ export function AdvancedStats() {
         ? 100
         : 0;
 
-  // Filtrar apenas clientes de fontes principais (não corretores)
-  const clientesPrincipais = clientes.filter(c => isFontePrincipal(c.fonte));
-
-  const valorTotal = clientesPrincipais.reduce((acc, cliente) => {
+  const valorTotal = clientes.reduce((acc, cliente) => {
     const valor = Number.parseFloat(
       cliente.valor.replace("R$", "").replace(".", "").replace(",", ".").trim(),
     );
     return isNaN(valor) ? acc : acc + valor;
   }, 0);
 
-  const ticketMedio = clientesPrincipais.length > 0 ? valorTotal / clientesPrincipais.length : 0;
+  const ticketMedio = clientes.length > 0 ? valorTotal / clientes.length : 0;
 
   const taxaConversao =
-    clientesPrincipais.length > 0
-      ? (clientesPrincipais.filter((c) => c.status === "pago").length / clientesPrincipais.length) *
+    clientes.length > 0
+      ? (clientes.filter((c) => c.status === "pago").length / clientes.length) *
         100
       : 0;
 

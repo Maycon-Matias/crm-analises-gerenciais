@@ -1,47 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
-import { getCache, setCache, deleteCache } from "@/lib/cache";
 
 // GET - Listar todas as metas
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    // Tentar obter do cache primeiro
-    const cacheKey = "metas-todas";
-    const cachedMetas = getCache(cacheKey);
-    
-    if (cachedMetas) {
-      console.log("📦 Retornando metas do cache");
-      return NextResponse.json(cachedMetas);
-    }
-
-    console.log("🔄 Buscando metas do banco...");
-    
-    // Tentar conectar com retry
-    let client;
-    let retries = 3;
-    
-    while (retries > 0) {
-      try {
-        client = await clientPromise;
-        break;
-      } catch (error) {
-        retries--;
-        console.warn(`⚠️ Tentativa de conexão falhou, ${retries} tentativas restantes:`, error);
-        
-        if (retries === 0) {
-          throw error;
-        }
-        
-        // Aguardar antes de tentar novamente
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
-    
-    if (!client) {
-      throw new Error("Falha ao conectar com o MongoDB após múltiplas tentativas");
-    }
-    
+    const client = await clientPromise;
     const db = client.db("crm");
     const collection = db.collection("metas");
 
@@ -57,27 +21,10 @@ export async function GET(_req: NextRequest) {
       tipo: meta.tipo || "valor",
     }));
 
-    // Salvar no cache por 5 minutos
-    setCache(cacheKey, metasFormatadas, 5 * 60 * 1000);
-    console.log(`💾 ${metasFormatadas.length} metas salvas no cache`);
-
     return NextResponse.json(metasFormatadas);
   } catch (error) {
     console.error("Erro ao buscar metas:", error);
-    
-    // Retornar erro mais específico baseado no tipo de erro
-    const err = error as Error & { name?: string };
-    if (err.name === 'MongoServerSelectionError') {
-      return NextResponse.json({ 
-        error: "Erro de conexão com o banco de dados. Verifique se o MongoDB está acessível.",
-        details: "Server selection timed out"
-      }, { status: 503 });
-    }
-    
-    return NextResponse.json({ 
-      error: "Erro ao buscar metas",
-      details: err.message || "Erro desconhecido"
-    }, { status: 500 });
+    return NextResponse.json({ error: "Erro ao buscar metas" }, { status: 500 });
   }
 }
 
@@ -95,10 +42,6 @@ export async function POST(req: NextRequest) {
     };
 
     const result = await collection.insertOne(novaMeta);
-
-    // Limpar cache de metas (dados mudaram)
-    deleteCache("metas-todas");
-    console.log("🗑️ Cache de metas limpo após criação");
 
     return NextResponse.json({ 
       success: true, 
@@ -135,10 +78,6 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Meta não encontrada" }, { status: 404 });
     }
 
-    // Limpar cache de metas (dados mudaram)
-    deleteCache("metas-todas");
-    console.log("🗑️ Cache de metas limpo após atualização");
-
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Erro ao atualizar meta:", error);
@@ -165,10 +104,6 @@ export async function DELETE(req: NextRequest) {
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Meta não encontrada" }, { status: 404 });
     }
-
-    // Limpar cache de metas (dados mudaram)
-    deleteCache("metas-todas");
-    console.log("🗑️ Cache de metas limpo após exclusão");
 
     return NextResponse.json({ success: true });
   } catch (error) {

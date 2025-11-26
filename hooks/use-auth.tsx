@@ -1,6 +1,9 @@
 "use client";
 
+import type React from "react";
+
 import { createContext, useContext, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import type { User, AuthState } from "@/types/auth";
 
 interface AuthContextType extends AuthState {
@@ -19,14 +22,14 @@ const usuariosPredefinidos: User[] = [
     nome: "Maycon",
     email: "admin@poracred.com",
     senha: "admin123",
-    role: "admin",
+    role: "admin", // ← ADMINISTRADOR
   },
   {
     id: "2",
     nome: "Amanda",
     email: "amanda@poracred.com",
     senha: "amanda123",
-    role: "user",
+    role: "user", // ← VOLTOU PARA USER
   },
   {
     id: "3",
@@ -72,39 +75,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [users] = useState<User[]>(usuariosPredefinidos);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [now, setNow] = useState<Date | null>(null);
 
-  // Inicialização única
+  // Verificar se o usuário já está logado ao carregar a página
   useEffect(() => {
-    // Simular verificação inicial
-    setTimeout(() => {
-      setLoading(false);
-    }, 100);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        // Sincronizar papel do usuário salvo com a lista de usuários
+        const userFromList = usuariosPredefinidos.find(u => u.email === user.email);
+        if (!userFromList) {
+          // Usuário não existe mais, forçar logout
+          localStorage.removeItem("user");
+          setAuthState({ user: null, isAuthenticated: false });
+          if (typeof window !== "undefined") {
+            router.push("/login");
+          }
+        } else if (userFromList.role !== user.role) {
+          // Papel mudou, atualizar localStorage e estado
+          setAuthState({ user: userFromList, isAuthenticated: true });
+          localStorage.setItem("user", JSON.stringify(userFromList));
+        } else {
+          setAuthState({ user, isAuthenticated: true });
+        }
+      } catch (error) {
+        localStorage.removeItem("user");
+        setAuthState({ user: null, isAuthenticated: false });
+        if (typeof window !== "undefined") {
+          router.push("/login");
+        }
+      }
+    }
+    setLoading(false);
+  }, [router]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 60000); // Atualizar a cada minuto
+
+    return () => clearInterval(interval);
   }, []);
 
   const login = async (email: string, senha: string): Promise<boolean> => {
-    try {
-      const user = users.find((u: User) => u.email === email && u.senha === senha);
+    // Simular um atraso de rede
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
-      if (user) {
-        // Atualizar estado
-        const newAuthState = {
-          user,
-          isAuthenticated: true,
-        };
-        
-        setAuthState(newAuthState);
-        
-        // Salvar no localStorage
-        localStorage.setItem("auth", JSON.stringify(newAuthState));
-        
-        return true;
-      } else {
-        return false;
-      }
-    } catch (error) {
-      console.error("Erro no login:", error);
-      return false;
+    console.log("Tentativa de login:", { email, senha });
+    console.log("Usuários disponíveis:", users);
+
+    const user = users.find((u) => u.email === email && u.senha === senha);
+
+    console.log("Usuário encontrado:", user);
+
+    if (user) {
+      setAuthState({
+        user,
+        isAuthenticated: true,
+      });
+      localStorage.setItem("user", JSON.stringify(user));
+      console.log("Login bem-sucedido para:", user.nome);
+      return true;
     }
+
+    console.log("Login falhou - usuário não encontrado");
+    return false;
   };
 
   const logout = () => {
@@ -112,32 +149,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: null,
       isAuthenticated: false,
     });
-    localStorage.removeItem("auth");
-    window.location.href = "/login";
-  };
-
-  // Carregar estado do localStorage apenas uma vez
-  useEffect(() => {
-    try {
-      const savedAuth = localStorage.getItem("auth");
-      if (savedAuth) {
-        const parsedAuth = JSON.parse(savedAuth);
-        setAuthState(parsedAuth);
-      }
-    } catch (error) {
-      console.error("Erro ao carregar auth do localStorage:", error);
+    localStorage.removeItem("user");
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
     }
-  }, []);
-
-  const value: AuthContextType = {
-    ...authState,
-    login,
-    logout,
-    users,
-    loading,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        ...authState,
+        login,
+        logout,
+        users,
+        loading,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
