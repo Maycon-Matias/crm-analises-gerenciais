@@ -74,6 +74,8 @@ export const opcoesPredefinidas = {
     "Corretor(CA)",
     "Corretor(BI)",
     "Corretor(SA)",
+    "Corretor(KA)",
+    "Corretor(JU)",
     "URA",
     "Trafego",
     "Rede Social",
