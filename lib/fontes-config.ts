@@ -133,6 +133,20 @@ export const FONTES_CONFIG: FonteConfig[] = [
     ativo: true,
     percentualMeta: 0.5
   }
+  {
+    nome: "Corretor(KA)",
+    categoria: "corretor",
+    descricao: "Vendas via corretor KA",
+    ativo: true,
+    percentualMeta: 0.5
+  },
+  {
+    nome: "Corretor(JU)",
+    categoria: "corretor",
+    descricao: "Vendas via corretor JU",
+    ativo: true,
+    percentualMeta: 0.5
+  }
 ];
 
 // Funções utilitárias para trabalhar com as fontes
