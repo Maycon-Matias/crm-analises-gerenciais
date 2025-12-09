@@ -31,7 +31,8 @@ import type { Cliente } from "@/types/cliente";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle, AlertTriangle, Info, User, DollarSign, Calendar, Building, Source } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { getDataAtualFormatada } from "@/lib/utils";
+import { getDataAtualFormatada, getDataAtualSemFusoHorario, debugDataAtual } from "@/lib/utils";
+import { getTodasFontes } from "@/lib/fontes-config";
 
 // Função para obter o mês atual em português
 function getMesAtual() {
@@ -53,9 +54,18 @@ function getMesAtual() {
   return meses[dataAtual.getMonth()];
 }
 
-// Função para formatar a data atual como YYYY-MM-DD
+// Função para formatar a data atual como YYYY-MM-DD (usando método mais robusto)
 function getDataAtual() {
-  return getDataAtualFormatada();
+  // Debug: Verificar as datas
+  debugDataAtual();
+  
+  // Usar a função mais robusta que considera fuso horário local
+  return getDataAtualSemFusoHorario();
+}
+
+// Função para obter fontes disponíveis
+function getFontesDisponiveis() {
+  return getTodasFontes();
 }
 
 // Função melhorada para formatar valor
@@ -187,6 +197,16 @@ export default function NovoClientePage() {
     if (touched.telefone && formData.telefone && formData.telefone.replace(/[^\d]/g, "").length < 10) {
       newErrors.telefone = "Telefone deve ter pelo menos 10 dígitos";
     }
+
+    // CORREÇÃO: Validação da data de previsão de pagamento
+    if (touched.data_previsao_pagamento && formData.data_previsao_pagamento) {
+      const dataAtual = getDataAtual();
+      const dataPrevisao = formData.data_previsao_pagamento;
+      
+      if (dataPrevisao < dataAtual) {
+        newErrors.data_previsao_pagamento = "A data de previsão não pode ser anterior à data atual";
+      }
+    }
     
     setErrors(newErrors);
   }, [formData, touched]);
@@ -224,7 +244,7 @@ export default function NovoClientePage() {
 
   const isFormValid = () => {
     const obrigatorios = ["cliente", "valor", "data", "mes", "produto", "banco", "fonte"];
-    return obrigatorios.every(campo => formData[campo] && !errors[campo]);
+    return obrigatorios.every(campo => formData[campo as keyof typeof formData] && !errors[campo as keyof typeof errors]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -446,17 +466,26 @@ export default function NovoClientePage() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="data_pagamento" className="flex items-center gap-2">
-                            Data do Pagamento
+                          <Label htmlFor="data_previsao_pagamento" className="flex items-center gap-2">
+                            Data Prevista de Pagamento
                             <Badge variant="secondary" className="text-xs">Opcional</Badge>
                           </Label>
                           <Input
-                            id="data_pagamento"
-                            name="data_pagamento"
+                            id="data_previsao_pagamento"
+                            name="data_previsao_pagamento"
                             type="date"
-                            value={formData.data_pagamento || ""}
+                            min={getDataAtual()}
+                            value={formData.data_previsao_pagamento || ""}
                             onChange={handleChange}
+                            onBlur={() => handleBlur("data_previsao_pagamento")}
+                            className={`${errors.data_previsao_pagamento ? "border-red-500 focus:border-red-500" : ""}`}
                           />
+                          {errors.data_previsao_pagamento && (
+                            <p className="text-sm text-red-600 dark:text-red-400">{errors.data_previsao_pagamento}</p>
+                          )}
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Quando você espera receber este pagamento?
+                          </p>
                         </div>
 
                         <div className="space-y-2">
@@ -552,16 +581,59 @@ export default function NovoClientePage() {
                               <SelectValue placeholder="Selecione a fonte" />
                             </SelectTrigger>
                             <SelectContent>
-                              {opcoesPredefinidas.fontes.map((fonte) => (
-                                <SelectItem key={fonte} value={fonte}>
-                                  {fonte}
-                                </SelectItem>
-                              ))}
+                              {/* Fontes Principais */}
+                              <div className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-300">
+                                🟢 Vendas Principais (contam para metas)
+                              </div>
+                              {getFontesDisponiveis()
+                                .filter(fonte => 
+                                  fonte === "Indicação(RO)" || 
+                                  fonte === "URA" || 
+                                  fonte === "Trafego" ||
+                                  fonte === "Rede Social" ||
+                                  fonte === "Balcão" ||
+                                  fonte === "Discador" ||
+                                  fonte === "Cliente Fixo" ||
+                                  fonte === "Indicação"
+                                )
+                                .map((fonte) => (
+                                  <SelectItem key={fonte} value={fonte}>
+                                    {fonte}
+                                  </SelectItem>
+                                ))
+                              }
+                              
+                              {/* Separador */}
+                              <div className="px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-300 mt-2">
+                                🟡 Vendas de Corretor (não contam para metas)
+                              </div>
+                              {getFontesDisponiveis()
+                                .filter(fonte => fonte.startsWith("Corretor("))
+                                .map((fonte) => (
+                                  <SelectItem key={fonte} value={fonte}>
+                                    {fonte}
+                                  </SelectItem>
+                                ))
+                              }
                             </SelectContent>
                           </Select>
                           {errors.fonte && (
                             <p className="text-sm text-red-600 dark:text-red-400">{errors.fonte}</p>
                           )}
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {formData.fonte && (
+                              formData.fonte === "Indicação(RO)" || 
+                              formData.fonte === "URA" || 
+                              formData.fonte === "Trafego" ||
+                              formData.fonte === "Rede Social" ||
+                              formData.fonte === "Balcão" ||
+                              formData.fonte === "Discador" ||
+                              formData.fonte === "Cliente Fixo" ||
+                              formData.fonte === "Indicação"
+                                ? "✅ Esta fonte conta para suas metas do mês"
+                                : "⚠️ Esta fonte não conta para suas metas do mês"
+                            )}
+                          </p>
                         </div>
 
                         <div className="space-y-2">

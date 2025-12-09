@@ -232,6 +232,22 @@ export default function EditarClientePage({
                         />
                       </div>
 
+                      {/* Campo de Data de Previsão de Pagamento */}
+                      <div className="space-y-2">
+                        <Label htmlFor="data_previsao_pagamento">Data de Previsão de Pagamento</Label>
+                        <Input
+                          id="data_previsao_pagamento"
+                          name="data_previsao_pagamento"
+                          type="date"
+                          value={formData.data_previsao_pagamento || ""}
+                          onChange={handleChange}
+                          placeholder="Data prevista para pagamento"
+                        />
+                        <p className="text-xs text-gray-500">
+                          Data em que o pagamento está previsto para ser realizado
+                        </p>
+                      </div>
+
                       {/* Campo de Data de Pagamento */}
                       {formData.status === "pago" && (
                         <div className="space-y-2">

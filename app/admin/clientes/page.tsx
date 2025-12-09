@@ -43,8 +43,10 @@ import {
   Clock,
   XCircle,
   Filter,
+  FileText,
 } from "lucide-react";
 import type { FiltrosCliente } from "@/types/cliente";
+import { getPercentualMeta, isFonteCorretor } from "@/lib/fontes-config";
 
 export default function AdminClientesPage() {
   const {
@@ -53,6 +55,7 @@ export default function AdminClientesPage() {
     marcarComoPago,
     marcarComoCancelado,
     exportarParaCSV,
+    exportarParaHTML,
   } = useClientes();
   const { users } = useAuth();
   const [busca, setBusca] = useState("");
@@ -63,18 +66,23 @@ export default function AdminClientesPage() {
     status: "todos",
   });
   const [dataPagamentoEspecifica, setDataPagamentoEspecifica] = useState("");
-  const [mesPagamentoFiltro, setMesPagamentoFiltro] = useState("todos");
+  const [mesPagamentoFiltro, setMesPagamentoFiltro] = useState<string[]>([]);
   const [mostrarFiltrosAvancados, setMostrarFiltrosAvancados] = useState(false);
   const [filtrosRenderizados, setFiltrosRenderizados] = useState(false);
-  const [produtoFiltro, setProdutoFiltro] = useState("todos");
-  const [bancoFiltro, setBancoFiltro] = useState("todos");
-  const [fonteFiltro, setFonteFiltro] = useState("todos");
+  const [produtoFiltro, setProdutoFiltro] = useState<string[]>([]);
+  const [bancoFiltro, setBancoFiltro] = useState<string[]>([]);
+  const [fonteFiltro, setFonteFiltro] = useState<string[]>([]);
+  const [tipoFonteFiltro, setTipoFonteFiltro] = useState<string[]>([]);
   const [valorMinimo, setValorMinimo] = useState("");
   const [valorMaximo, setValorMaximo] = useState("");
   const [dataInicial, setDataInicial] = useState("");
   const [dataFinal, setDataFinal] = useState("");
   const [dataPagamentoInicial, setDataPagamentoInicial] = useState("");
   const [dataPagamentoFinal, setDataPagamentoFinal] = useState("");
+  const [produtoFiltroAberto, setProdutoFiltroAberto] = useState(false);
+  const [bancoFiltroAberto, setBancoFiltroAberto] = useState(false);
+  const [fonteFiltroAberto, setFonteFiltroAberto] = useState(false);
+  const [mesPagamentoFiltroAberto, setMesPagamentoFiltroAberto] = useState(false);
 
   const vendedores = users.filter((user) => user.role === "user");
 
@@ -135,13 +143,35 @@ export default function AdminClientesPage() {
   const clientesFiltrados = useMemo(() => {
     let resultado = clientes;
 
+    // FILTRO DE BUSCA - ADICIONADO AGORA!
+    if (busca && busca.trim() !== '') {
+      const termoBusca = busca.toLowerCase().trim();
+      resultado = resultado.filter((cliente) => {
+        // Busca no nome do cliente
+        if (cliente.cliente && cliente.cliente.toLowerCase().includes(termoBusca)) {
+          return true;
+        }
+        // Busca no produto
+        if (cliente.produto && cliente.produto.toLowerCase().includes(termoBusca)) {
+          return true;
+        }
+        // Busca no banco
+        if (cliente.banco && cliente.banco.toLowerCase().includes(termoBusca)) {
+          return true;
+        }
+        // Busca na fonte
+        if (cliente.fonte && cliente.fonte.toLowerCase().includes(termoBusca)) {
+          return true;
+        }
+        return false;
+      });
+    }
+
     // Aplicar filtros apenas se não forem "todos"
     if (filtros.mes && filtros.mes !== "todos") {
       resultado = resultado.filter((cliente) => {
-        // Para pagos, usar data_pagamento se disponível, senão usar data de cadastro
-        const dataCliente = cliente.status === "pago" && cliente.data_pagamento 
-          ? new Date(cliente.data_pagamento + 'T00:00:00')
-          : new Date(cliente.data + 'T00:00:00');
+        // SEMPRE usar data de cadastro para filtro de mês
+        const dataCliente = new Date(cliente.data + 'T00:00:00');
         const mesCliente = dataCliente.toLocaleDateString("pt-BR", {
           month: "long",
         });
@@ -151,127 +181,125 @@ export default function AdminClientesPage() {
 
     if (filtros.dia) {
       resultado = resultado.filter((cliente) => {
-        // Para pagos, usar data_pagamento se disponível, senão usar data de cadastro
-        const dataCliente = cliente.status === "pago" && cliente.data_pagamento 
-          ? cliente.data_pagamento
-          : cliente.data;
-        return dataCliente === filtros.dia;
+        // SEMPRE usar data de cadastro para filtro de dia
+        return cliente.data === filtros.dia;
       });
     }
 
-    // Filtro de data específica de pagamento
+    // Filtro de data específica de pagamento - APENAS para clientes pagos
     if (dataPagamentoEspecifica) {
       resultado = resultado.filter((cliente) => {
         return cliente.status === "pago" && cliente.data_pagamento === dataPagamentoEspecifica;
       });
     }
 
-    // Filtro de mês de pagamento
-    if (mesPagamentoFiltro !== "todos") {
+    // Filtro de mês de pagamento - APENAS para clientes pagos
+    if (mesPagamentoFiltro.length > 0) {
       resultado = resultado.filter((cliente) => {
         return cliente.status === "pago" && cliente.data_pagamento && 
-               new Date(cliente.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' }) === mesPagamentoFiltro;
+               mesPagamentoFiltro.includes(new Date(cliente.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' }));
       });
     }
 
     // Filtro de produto
-    if (produtoFiltro !== "todos") {
+    if (produtoFiltro.length > 0) {
       resultado = resultado.filter((cliente) => {
-        return cliente.produto === produtoFiltro;
+        return produtoFiltro.includes(cliente.produto);
       });
     }
 
     // Filtro de banco
-    if (bancoFiltro !== "todos") {
+    if (bancoFiltro.length > 0) {
       resultado = resultado.filter((cliente) => {
-        return cliente.banco === bancoFiltro;
+        return bancoFiltro.includes(cliente.banco);
       });
     }
 
     // Filtro de fonte
-    if (fonteFiltro !== "todos") {
+    if (fonteFiltro.length > 0) {
       resultado = resultado.filter((cliente) => {
-        return cliente.fonte === fonteFiltro;
+        return fonteFiltro.includes(cliente.fonte);
+      });
+    }
+
+    // Filtro de tipo de fonte
+    if (tipoFonteFiltro.length > 0) {
+      resultado = resultado.filter((cliente) => {
+        return tipoFonteFiltro.some(tipo => {
+          if (tipo === "principal") {
+            // Incluir fontes principais E corretores (que contam 50% para metas)
+            return true; // Todos os clientes passam quando filtro inclui "principal"
+          }
+          if (tipo === "corretor") return cliente.fonte.includes("Corretor");
+          return false;
+        });
       });
     }
 
     // Filtro de valor mínimo
     if (valorMinimo) {
       resultado = resultado.filter((cliente) => {
-        const valorCliente = parseValor(cliente.valor);
-        return valorCliente >= parseValor(valorMinimo);
+        const valor = parseValor(cliente.valor);
+        return valor >= parseFloat(valorMinimo);
       });
     }
 
     // Filtro de valor máximo
     if (valorMaximo) {
       resultado = resultado.filter((cliente) => {
-        const valorCliente = parseValor(cliente.valor);
-        return valorCliente <= parseValor(valorMaximo);
+        const valor = parseValor(cliente.valor);
+        return valor <= parseFloat(valorMaximo);
       });
     }
 
-    // Filtro de período de cadastro
+    // Filtro de data inicial (cadastro)
     if (dataInicial) {
       resultado = resultado.filter((cliente) => {
-        const dataCliente = new Date(cliente.data);
-        const dataInicialObj = new Date(dataInicial);
-        return dataCliente >= dataInicialObj;
+        return cliente.data >= dataInicial;
       });
     }
 
+    // Filtro de data final (cadastro)
     if (dataFinal) {
       resultado = resultado.filter((cliente) => {
-        const dataCliente = new Date(cliente.data);
-        const dataFinalObj = new Date(dataFinal);
-        return dataCliente <= dataFinalObj;
+        return cliente.data <= dataFinal;
       });
     }
 
-    // Filtro de período de pagamento
+    // Filtro de data de pagamento inicial
     if (dataPagamentoInicial) {
       resultado = resultado.filter((cliente) => {
-        return cliente.status === "pago" && cliente.data_pagamento && 
-               new Date(cliente.data_pagamento) >= new Date(dataPagamentoInicial);
+        return cliente.status === "pago" && cliente.data_pagamento && cliente.data_pagamento >= dataPagamentoInicial;
       });
     }
 
+    // Filtro de data de pagamento final
     if (dataPagamentoFinal) {
       resultado = resultado.filter((cliente) => {
-        return cliente.status === "pago" && cliente.data_pagamento && 
-               new Date(cliente.data_pagamento) <= new Date(dataPagamentoFinal);
+        return cliente.status === "pago" && cliente.data_pagamento && cliente.data_pagamento <= dataPagamentoFinal;
       });
     }
 
+    // Filtro de usuário
     if (filtros.usuario && filtros.usuario !== "todos") {
-      resultado = resultado.filter(
-        (cliente) => cliente.usuarios.toLowerCase() === filtros.usuario?.toLowerCase(),
-      );
+      resultado = resultado.filter((cliente) => {
+        return cliente.usuarios === filtros.usuario;
+      });
     }
 
+    // Filtro de status
     if (filtros.status && filtros.status !== "todos") {
-      resultado = resultado.filter(
-        (cliente) => cliente.status === filtros.status,
-      );
-    }
-
-    // Aplicar busca por texto
-    if (busca) {
-      resultado = resultado.filter(
-        (cliente) =>
-          cliente.cliente.toLowerCase().includes(busca.toLowerCase()) ||
-          cliente.produto.toLowerCase().includes(busca.toLowerCase()) ||
-          cliente.banco.toLowerCase().includes(busca.toLowerCase()) ||
-          cliente.fonte.toLowerCase().includes(busca.toLowerCase()),
-      );
+      resultado = resultado.filter((cliente) => {
+        return cliente.status === filtros.status;
+      });
     }
 
     return resultado;
-  }, [clientes, filtros, busca, dataPagamentoEspecifica, mesPagamentoFiltro, produtoFiltro, bancoFiltro, fonteFiltro, valorMinimo, valorMaximo, dataInicial, dataFinal, dataPagamentoInicial, dataPagamentoFinal]);
+  }, [clientes, filtros, dataPagamentoEspecifica, mesPagamentoFiltro, produtoFiltro, bancoFiltro, fonteFiltro, tipoFonteFiltro, valorMinimo, valorMaximo, dataInicial, dataFinal, dataPagamentoInicial, dataPagamentoFinal, busca]);
 
   // Calcular totais
   const totais = useMemo(() => {
-    const totalPago = clientesFiltrados
+    const totalPagoBruto = clientesFiltrados
       .filter((c) => c.status === "pago")
       .reduce((acc, cliente) => {
         const valor = Number.parseFloat(
@@ -282,6 +310,21 @@ export default function AdminClientesPage() {
             .trim(),
         );
         return isNaN(valor) ? acc : acc + valor;
+      }, 0);
+
+    // Total pago ponderado por fonte (1.0 principais, 0.5 corretores)
+    const totalPagoPonderado = clientesFiltrados
+      .filter((c) => c.status === "pago")
+      .reduce((acc, cliente) => {
+        const valor = Number.parseFloat(
+          cliente.valor
+            .replace("R$", "")
+            .replace(".", "")
+            .replace(",", ".")
+            .trim(),
+        );
+        const peso = getPercentualMeta(cliente.fonte);
+        return isNaN(valor) ? acc : acc + (valor * (isNaN(peso) ? 0 : peso));
       }, 0);
 
     const totalPendente = clientesFiltrados
@@ -310,8 +353,49 @@ export default function AdminClientesPage() {
         return isNaN(valor) ? acc : acc + valor;
       }, 0);
 
-    return { totalPago, totalPendente, totalCancelado };
-  }, [clientesFiltrados]);
+    // Calcular valores dos corretores (50%)
+    const clientesCorretores = clientesFiltrados.filter(c => isFonteCorretor(c.fonte));
+    const valorBrutoCorretores = clientesCorretores
+      .filter(c => c.status === "pago")
+      .reduce((acc, cliente) => {
+        const valor = Number.parseFloat(
+          cliente.valor
+            .replace("R$", "")
+            .replace(".", "")
+            .replace(",", ".")
+            .trim(),
+        );
+        return isNaN(valor) ? acc : acc + valor;
+      }, 0);
+    const valorContadoCorretores = clientesCorretores
+      .filter(c => c.status === "pago")
+      .reduce((acc, cliente) => {
+        const valor = Number.parseFloat(
+          cliente.valor
+            .replace("R$", "")
+            .replace(".", "")
+            .replace(",", ".")
+            .trim(),
+        );
+        const peso = getPercentualMeta(cliente.fonte);
+        return isNaN(valor) ? acc : acc + (valor * (isNaN(peso) ? 0 : peso));
+      }, 0);
+
+    // Se o filtro "principal" estiver marcado, usar o ponderado; caso contrário, usar bruto
+    const usarPonderado = tipoFonteFiltro.includes("principal");
+    const totalPago = usarPonderado ? totalPagoPonderado : totalPagoBruto;
+
+    return { 
+      totalPago, 
+      totalPendente, 
+      totalCancelado,
+      corretores: {
+        total: clientesCorretores.length,
+        bruto: valorBrutoCorretores,
+        contado: valorContadoCorretores
+      }
+    };
+  }, [clientesFiltrados, tipoFonteFiltro]);
 
   const limparFiltros = () => {
     setFiltros({
@@ -322,10 +406,11 @@ export default function AdminClientesPage() {
     });
     setBusca("");
     setDataPagamentoEspecifica("");
-    setMesPagamentoFiltro("todos");
-    setProdutoFiltro("todos");
-    setBancoFiltro("todos");
-    setFonteFiltro("todos");
+    setMesPagamentoFiltro([]);
+    setProdutoFiltro([]);
+    setBancoFiltro([]);
+    setFonteFiltro([]);
+    setTipoFonteFiltro([]);
     setValorMinimo("");
     setValorMaximo("");
     setDataInicial("");
@@ -398,6 +483,44 @@ export default function AdminClientesPage() {
             </Card>
           </div>
 
+          {/* Card de detalhamento dos corretores (50%) */}
+          {totais.corretores.total > 0 && (
+            <div className="mb-8">
+              <Card className="bg-amber-50 border border-amber-200">
+                <CardContent className="p-6">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-amber-900 flex items-center justify-center gap-2 mb-4">
+                      🏢 Corretores (50% para metas)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <div className="text-3xl font-bold text-amber-600">
+                          {totais.corretores.total}
+                        </div>
+                        <div className="text-sm text-amber-700">Total Clientes</div>
+                      </div>
+                      <div>
+                        <div className="text-3xl font-bold text-orange-600">
+                          {totais.corretores.bruto.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </div>
+                        <div className="text-sm text-orange-700">Valor Bruto</div>
+                      </div>
+                      <div>
+                        <div className="text-3xl font-bold text-green-600">
+                          {totais.corretores.contado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </div>
+                        <div className="text-sm text-green-700">Contou (50%)</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 text-sm text-amber-700 bg-amber-100 p-3 rounded-lg">
+                      💡 Corretores contribuem com 50% do valor para metas de vendas
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between bg-primary/10">
               <CardTitle className="text-2xl text-primary">
@@ -414,10 +537,17 @@ export default function AdminClientesPage() {
                 </Button>
                 <Button
                   className="bg-primary hover:bg-primary/90"
-                  onClick={exportarParaCSV}
+                  onClick={() => exportarParaCSV(clientesFiltrados)}
                 >
                   <FileSpreadsheet className="mr-2 h-4 w-4" />
-                  Exportar
+                  Exportar CSV
+                </Button>
+                <Button
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => exportarParaHTML(clientesFiltrados)}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Exportar HTML
                 </Button>
                 <Link href="/clientes/novo">
                   <Button className="bg-primary hover:bg-primary/90">
@@ -439,7 +569,21 @@ export default function AdminClientesPage() {
                     value={busca}
                     onChange={(e) => setBusca(e.target.value)}
                   />
+                  {/* Indicador de busca */}
+                  {busca && (
+                    <div className="absolute right-2 top-2 text-xs text-gray-500">
+                      {clientesFiltrados.length} resultado{clientesFiltrados.length !== 1 ? 's' : ''}
+                    </div>
+                  )}
                 </div>
+                
+                {/* Indicador de busca ativa */}
+                {busca && (
+                  <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded text-sm text-green-800">
+                    🔍 Busca ativa: "{busca}" - {clientesFiltrados.length} cliente(s) encontrado(s)
+                  </div>
+                )}
+                
                 <Select value={filtros.status} onValueChange={(value) => setFiltros(prev => ({ ...prev, status: value }))}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Status" />
@@ -531,17 +675,42 @@ export default function AdminClientesPage() {
                       {/* Mês de Pagamento */}
                       <div>
                         <Label className="text-sm font-medium text-gray-700 mb-1 block">Mês de Pagamento</Label>
-                        <Select value={mesPagamentoFiltro} onValueChange={setMesPagamentoFiltro}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Todos os meses" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="todos">Todos os meses</SelectItem>
-                            {mesesPagamentoUnicos.map(mes => (
-                              <SelectItem key={mes} value={mes}>{mes}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="border rounded-md">
+                          <button
+                            type="button"
+                            onClick={() => setMesPagamentoFiltroAberto(!mesPagamentoFiltroAberto)}
+                            className="w-full px-3 py-2 text-left text-sm flex items-center justify-between hover:bg-gray-50"
+                          >
+                            <span>
+                              {mesPagamentoFiltro.length === 0 
+                                ? "Todos os meses" 
+                                : `${mesPagamentoFiltro.length} mês(es) selecionado(s)`
+                              }
+                            </span>
+                            <span className="text-gray-400">▼</span>
+                          </button>
+                          {mesPagamentoFiltroAberto && (
+                            <div className="border-t p-3 max-h-32 overflow-y-auto">
+                              {mesesPagamentoUnicos.map(mes => (
+                                <label key={mes} className="flex items-center space-x-2 py-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={mesPagamentoFiltro.includes(mes)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setMesPagamentoFiltro(prev => [...prev, mes]);
+                                      } else {
+                                        setMesPagamentoFiltro(prev => prev.filter(m => m !== mes));
+                                      }
+                                    }}
+                                    className="rounded border-gray-300"
+                                  />
+                                  <span className="text-sm">{mes}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Período de Pagamento */}
@@ -574,49 +743,166 @@ export default function AdminClientesPage() {
                       {/* Produto */}
                       <div>
                         <Label className="text-sm font-medium text-gray-700 mb-1 block">Produto</Label>
-                        <Select value={produtoFiltro} onValueChange={setProdutoFiltro}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Todos os produtos" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="todos">Todos os produtos</SelectItem>
-                            {produtosUnicos.map(produto => (
-                              <SelectItem key={produto} value={produto}>{produto}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="border rounded-md">
+                          <button
+                            type="button"
+                            onClick={() => setProdutoFiltroAberto(!produtoFiltroAberto)}
+                            className="w-full px-3 py-2 text-left text-sm flex items-center justify-between hover:bg-gray-50"
+                          >
+                            <span>
+                              {produtoFiltro.length === 0 
+                                ? "Todos os produtos" 
+                                : `${produtoFiltro.length} produto(s) selecionado(s)`
+                              }
+                            </span>
+                            <span className="text-gray-400">▼</span>
+                          </button>
+                          {produtoFiltroAberto && (
+                            <div className="border-t p-3 max-h-32 overflow-y-auto">
+                              {produtosUnicos.map(produto => (
+                                <label key={produto} className="flex items-center space-x-2 py-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={produtoFiltro.includes(produto)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setProdutoFiltro(prev => [...prev, produto]);
+                                      } else {
+                                        setProdutoFiltro(prev => prev.filter(p => p !== produto));
+                                      }
+                                    }}
+                                    className="rounded border-gray-300"
+                                  />
+                                  <span className="text-sm">{produto}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Banco */}
                       <div>
                         <Label className="text-sm font-medium text-gray-700 mb-1 block">Banco</Label>
-                        <Select value={bancoFiltro} onValueChange={setBancoFiltro}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Todos os bancos" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="todos">Todos os bancos</SelectItem>
-                            {bancosUnicos.map(banco => (
-                              <SelectItem key={banco} value={banco}>{banco}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="border rounded-md">
+                          <button
+                            type="button"
+                            onClick={() => setBancoFiltroAberto(!bancoFiltroAberto)}
+                            className="w-full px-3 py-2 text-left text-sm flex items-center justify-between hover:bg-gray-50"
+                          >
+                            <span>
+                              {bancoFiltro.length === 0 
+                                ? "Todos os bancos" 
+                                : `${bancoFiltro.length} banco(s) selecionado(s)`
+                              }
+                            </span>
+                            <span className="text-gray-400">▼</span>
+                          </button>
+                          {bancoFiltroAberto && (
+                            <div className="border-t p-3 max-h-32 overflow-y-auto">
+                              {bancosUnicos.map(banco => (
+                                <label key={banco} className="flex items-center space-x-2 py-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={bancoFiltro.includes(banco)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setBancoFiltro(prev => [...prev, banco]);
+                                      } else {
+                                        setBancoFiltro(prev => prev.filter(b => b !== banco));
+                                      }
+                                    }}
+                                    className="rounded border-gray-300"
+                                  />
+                                  <span className="text-sm">{banco}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Fonte */}
                       <div>
                         <Label className="text-sm font-medium text-gray-700 mb-1 block">Fonte</Label>
-                        <Select value={fonteFiltro} onValueChange={setFonteFiltro}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Todas as fontes" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="todos">Todas as fontes</SelectItem>
-                            {fontesUnicos.map(fonte => (
-                              <SelectItem key={fonte} value={fonte}>{fonte}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="border rounded-md">
+                          <button
+                            type="button"
+                            onClick={() => setFonteFiltroAberto(!fonteFiltroAberto)}
+                            className="w-full px-3 py-2 text-left text-sm flex items-center justify-between hover:bg-gray-50"
+                          >
+                            <span>
+                              {fonteFiltro.length === 0 
+                                ? "Todas as fontes" 
+                                : `${fonteFiltro.length} fonte(s) selecionada(s)`
+                              }
+                            </span>
+                            <span className="text-gray-400">▼</span>
+                          </button>
+                          {fonteFiltroAberto && (
+                            <div className="border-t p-3 max-h-32 overflow-y-auto">
+                              {fontesUnicos.map(fonte => (
+                                <label key={fonte} className="flex items-center space-x-2 py-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={fonteFiltro.includes(fonte)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setFonteFiltro(prev => [...prev, fonte]);
+                                      } else {
+                                        setFonteFiltro(prev => prev.filter(f => f !== fonte));
+                                      }
+                                    }}
+                                    className="rounded border-gray-300"
+                                  />
+                                  <span className="text-sm">{fonte}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Tipo de Fonte (Principais vs Corretores) */}
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700 mb-1 block">🔍 Tipo de Fontes</Label>
+                        <div className="space-y-2 mt-2">
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={tipoFonteFiltro.includes("principal")}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setTipoFonteFiltro(prev => [...prev, "principal"]);
+                                } else {
+                                  setTipoFonteFiltro(prev => prev.filter(t => t !== "principal"));
+                                }
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <span className="text-sm">🎯 Principais + Corretores (contam para metas)</span>
+                          </label>
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={tipoFonteFiltro.includes("corretor")}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setTipoFonteFiltro(prev => [...prev, "corretor"]);
+                                } else {
+                                  setTipoFonteFiltro(prev => prev.filter(t => t !== "corretor"));
+                                }
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <span className="text-sm">⚠️ Corretores (não contam para metas)</span>
+                          </label>
+                        </div>
+                        {tipoFonteFiltro.length > 0 && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Selecionado: {tipoFonteFiltro.join(", ")}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -680,22 +966,24 @@ export default function AdminClientesPage() {
 
               {clientesFiltrados.length > 0 ? (
                 <>
-                  <div className="overflow-x-auto">
+                  {/* Desktop Table - Visível apenas em telas grandes */}
+                  <div className="hidden lg:block overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-primary/5">
-                          <TableHead>Cliente</TableHead>
-                          <TableHead>Produto</TableHead>
-                          <TableHead>Banco</TableHead>
-                          <TableHead>Fonte</TableHead>
-                          <TableHead>Valor</TableHead>
-                          <TableHead>Data</TableHead>
-                          <TableHead>Mês</TableHead>
-                          <TableHead>Vendedor</TableHead>
-                          <TableHead>CPF</TableHead>
-                          <TableHead>Telefone</TableHead>
-                          <TableHead>Observações</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
+                          <TableHead className="min-w-[200px]">Cliente</TableHead>
+                          <TableHead className="min-w-[120px]">Produto</TableHead>
+                          <TableHead className="min-w-[120px]">Banco</TableHead>
+                          <TableHead className="min-w-[120px]">Fonte</TableHead>
+                          <TableHead className="min-w-[100px]">Valor</TableHead>
+                          <TableHead className="min-w-[100px]">Data</TableHead>
+                          <TableHead className="min-w-[100px]">Previsão</TableHead>
+                          <TableHead className="min-w-[80px]">Mês</TableHead>
+                          <TableHead className="min-w-[100px]">Vendedor</TableHead>
+                          <TableHead className="min-w-[120px]">CPF</TableHead>
+                          <TableHead className="min-w-[120px]">Telefone</TableHead>
+                          <TableHead className="min-w-[150px]">Observações</TableHead>
+                          <TableHead className="min-w-[80px] text-right sticky right-0 bg-white">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -722,6 +1010,15 @@ export default function AdminClientesPage() {
                                     ? new Date(cliente.data_pagamento + 'T00:00:00').toLocaleDateString("pt-BR")
                                     : new Date(cliente.data + 'T00:00:00').toLocaleDateString("pt-BR") + " (s/ data pagto)" )
                                 : new Date(cliente.data + 'T00:00:00').toLocaleDateString("pt-BR")}
+                            </TableCell>
+                            <TableCell>
+                              {cliente.data_previsao_pagamento ? (
+                                <span className="text-sm text-blue-600 font-medium">
+                                  {new Date(cliente.data_previsao_pagamento + 'T00:00:00').toLocaleDateString("pt-BR")}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 text-sm">-</span>
+                              )}
                             </TableCell>
                             <TableCell>{cliente.mes}</TableCell>
                             <TableCell>{cliente.usuarios || "-"}</TableCell>
@@ -750,7 +1047,7 @@ export default function AdminClientesPage() {
                                 <span className="text-gray-400 text-sm">-</span>
                               )}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right sticky right-0 bg-white">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" className="h-8 w-8 p-0">
@@ -800,6 +1097,132 @@ export default function AdminClientesPage() {
                       </TableBody>
                     </Table>
                   </div>
+
+                  {/* Mobile/Tablet Cards - Visível apenas em telas pequenas e médias */}
+                  <div className="lg:hidden space-y-4">
+                    {clientesFiltrados.map((cliente) => (
+                      <Card key={cliente.id} className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              title={cliente.status.charAt(0).toUpperCase() + cliente.status.slice(1)}
+                              className={`inline-block w-3 h-3 rounded-full
+                                ${cliente.status === "pago" ? "bg-green-500" : ""}
+                                ${cliente.status === "pendente" ? "bg-yellow-400" : ""}
+                                ${cliente.status === "cancelado" ? "bg-red-500" : ""}
+                              `}
+                            />
+                            <h3 className="font-semibold text-lg">{cliente.cliente}</h3>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Abrir menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link href={`/clientes/editar/${cliente.id}`}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Editar
+                                </Link>
+                              </DropdownMenuItem>
+                              {cliente.status === "pendente" && (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    const hoje = new Date();
+                                    const dataHoje = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+                                    marcarComoPago(cliente.id, dataHoje);
+                                  }}
+                                >
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  Marcar como pago
+                                </DropdownMenuItem>
+                              )}
+                              {cliente.status === "pendente" && (
+                                <DropdownMenuItem
+                                  onClick={() => marcarComoCancelado(cliente.id)}
+                                >
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  Cancelar
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                onClick={() => removerCliente(cliente.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-gray-500">Produto:</span>
+                            <p className="font-medium">{cliente.produto}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Banco:</span>
+                            <p className="font-medium">{cliente.banco}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Fonte:</span>
+                            <p className="font-medium">{cliente.fonte}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Valor:</span>
+                            <p className="font-medium text-green-600">
+                              {(!isNaN(Number(cliente.valor)) && cliente.valor !== "") ? Number(cliente.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : cliente.valor}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Data:</span>
+                            <p className="font-medium">
+                              {cliente.status === "pago"
+                                ? (cliente.data_pagamento
+                                    ? new Date(cliente.data_pagamento + 'T00:00:00').toLocaleDateString("pt-BR")
+                                    : new Date(cliente.data + 'T00:00:00').toLocaleDateString("pt-BR") + " (s/ data pagto)" )
+                                : new Date(cliente.data + 'T00:00:00').toLocaleDateString("pt-BR")}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Vendedor:</span>
+                            <p className="font-medium">{cliente.usuarios || "-"}</p>
+                          </div>
+                          {cliente.data_previsao_pagamento && (
+                            <div className="col-span-2">
+                              <span className="text-gray-500">Previsão:</span>
+                              <p className="font-medium text-blue-600">
+                                {new Date(cliente.data_previsao_pagamento + 'T00:00:00').toLocaleDateString("pt-BR")}
+                              </p>
+                            </div>
+                          )}
+                          {cliente.cpf && (
+                            <div>
+                              <span className="text-gray-500">CPF:</span>
+                              <p className="font-medium">{cliente.cpf}</p>
+                            </div>
+                          )}
+                          {cliente.telefone && (
+                            <div>
+                              <span className="text-gray-500">Telefone:</span>
+                              <p className="font-medium">{cliente.telefone}</p>
+                            </div>
+                          )}
+                          {cliente.observacoes && (
+                            <div className="col-span-2">
+                              <span className="text-gray-500">Observações:</span>
+                              <p className="font-medium text-sm">{cliente.observacoes}</p>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+
                   <div className="mt-4 text-sm text-gray-500">
                     Mostrando {clientesFiltrados.length} de {clientes.length} clientes
                   </div>

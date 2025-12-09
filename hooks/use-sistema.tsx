@@ -6,8 +6,10 @@ import {
   useState,
   useEffect,
   type ReactNode,
+  useCallback,
 } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import type { LogSistema, NotificacaoSistema, TemplateCampo, BackupSistema, TemplateSistema, Configuracao } from "@/types/sistema";
 
 interface SistemaContextType {
   logs: LogSistema[];
@@ -22,7 +24,7 @@ interface SistemaContextType {
   criarBackup: (
     nome: string,
     descricao: string,
-    configuracao: Configuracao,
+    configuracao: any,
   ) => void;
   restaurarBackup: (backupId: string) => Configuracao | null;
   limparLogs: () => void;
@@ -47,7 +49,7 @@ const TEMPLATES_PADRAO: TemplateSistema[] = [
     id: "template-pf",
     nome: "Cliente Pessoa Física",
     descricao: "Campos essenciais para cadastro de pessoa física",
-    categoria: "pessoa-fisica",
+    categoria: "cliente",
     ativo: true,
     criadoEm: new Date().toISOString(),
     criadoPor: "Sistema",
@@ -78,7 +80,7 @@ const TEMPLATES_PADRAO: TemplateSistema[] = [
     id: "template-pj",
     nome: "Cliente Pessoa Jurídica",
     descricao: "Campos essenciais para cadastro de pessoa jurídica",
-    categoria: "pessoa-juridica",
+    categoria: "cliente",
     ativo: true,
     criadoEm: new Date().toISOString(),
     criadoPor: "Sistema",
@@ -114,7 +116,7 @@ const TEMPLATES_PADRAO: TemplateSistema[] = [
     id: "template-financeiro",
     nome: "Dados Financeiros",
     descricao: "Campos para informações financeiras e bancárias",
-    categoria: "financeiro",
+    categoria: "geral",
     ativo: true,
     criadoEm: new Date().toISOString(),
     criadoPor: "Sistema",
@@ -163,74 +165,56 @@ export function SistemaProvider({ children }: { children: ReactNode }) {
   const [templates, setTemplates] =
     useState<TemplateSistema[]>(TEMPLATES_PADRAO);
 
-  // Carregar dados do localStorage
+  // CORREÇÃO: Carregar dados do localStorage apenas uma vez
   useEffect(() => {
-    const savedLogs = localStorage.getItem("sistema-logs");
-    const savedBackups = localStorage.getItem("sistema-backups");
-    const savedNotificacoes = localStorage.getItem("sistema-notificacoes");
-    const savedTemplates = localStorage.getItem("sistema-templates");
+    try {
+      const savedLogs = localStorage.getItem("sistema-logs");
+      const savedBackups = localStorage.getItem("sistema-backups");
+      const savedNotificacoes = localStorage.getItem("sistema-notificacoes");
+      const savedTemplates = localStorage.getItem("sistema-templates");
 
-    if (savedLogs) {
-      try {
+      if (savedLogs) {
         setLogs(JSON.parse(savedLogs));
-      } catch (error) {
-        console.error("Erro ao carregar logs:", error);
       }
-    }
 
-    if (savedBackups) {
-      try {
+      if (savedBackups) {
         setBackups(JSON.parse(savedBackups));
-      } catch (error) {
-        console.error("Erro ao carregar backups:", error);
       }
-    }
 
-    if (savedNotificacoes) {
-      try {
+      if (savedNotificacoes) {
         setNotificacoes(JSON.parse(savedNotificacoes));
-      } catch (error) {
-        console.error("Erro ao carregar notificações:", error);
       }
-    }
 
-    if (savedTemplates) {
-      try {
+      if (savedTemplates) {
         const loadedTemplates = JSON.parse(savedTemplates);
         setTemplates([
           ...TEMPLATES_PADRAO,
           ...loadedTemplates.filter(
             (t: TemplateSistema) =>
-              !TEMPLATES_PADRAO.some((p) => p.id === t.id),
+              !TEMPLATES_PADRAO.some((tp) => tp.id === t.id),
           ),
         ]);
-      } catch (error) {
-        console.error("Erro ao carregar templates:", error);
       }
+    } catch (error) {
+      console.error("Erro ao carregar dados do localStorage:", error);
+      // Em caso de erro, usar dados padrão
+      setLogs([]);
+      setBackups([]);
+      setNotificacoes([]);
+      setTemplates(TEMPLATES_PADRAO);
+    }
+  }, []); // Executar apenas uma vez
+
+  // CORREÇÃO: Salvar no localStorage apenas quando necessário
+  const saveToLocalStorage = useCallback((key: string, data: any) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (error) {
+      console.error(`Erro ao salvar ${key} no localStorage:`, error);
     }
   }, []);
 
-  // Salvar dados no localStorage
-  useEffect(() => {
-    localStorage.setItem("sistema-logs", JSON.stringify(logs));
-  }, [logs]);
-
-  useEffect(() => {
-    localStorage.setItem("sistema-backups", JSON.stringify(backups));
-  }, [backups]);
-
-  useEffect(() => {
-    localStorage.setItem("sistema-notificacoes", JSON.stringify(notificacoes));
-  }, [notificacoes]);
-
-  useEffect(() => {
-    const customTemplates = templates.filter(
-      (t) => !TEMPLATES_PADRAO.some((p) => p.id === t.id),
-    );
-    localStorage.setItem("sistema-templates", JSON.stringify(customTemplates));
-  }, [templates]);
-
-  const adicionarLog = (
+  const adicionarLog = useCallback((
     acao: string,
     detalhes: string,
     tipo: "info" | "success" | "warning" | "error",
@@ -240,62 +224,60 @@ export function SistemaProvider({ children }: { children: ReactNode }) {
       acao,
       detalhes,
       tipo,
-      usuario: user?.nome || "Sistema",
       timestamp: new Date().toISOString(),
+      usuario: user?.nome || "Sistema",
     };
 
     setLogs((prev) => {
-      const novosLogs = [novoLog, ...prev];
-      // Manter apenas os últimos 1000 logs
-      return novosLogs.slice(0, 1000);
+      const novosLogs = [novoLog, ...prev].slice(0, 100); // Manter apenas os últimos 100
+      saveToLocalStorage("sistema-logs", novosLogs);
+      return novosLogs;
     });
-  };
+  }, [user?.nome, saveToLocalStorage]);
 
-  const criarBackup = (
+  const criarBackup = useCallback((
     nome: string,
     descricao: string,
-    configuracao: Configuracao,
+    configuracao: any,
   ) => {
     const novoBackup: BackupSistema = {
       id: Date.now().toString(),
       nome,
       descricao,
       configuracao,
+      data: new Date().toISOString(),
       criadoEm: new Date().toISOString(),
+      tamanho: "0 KB",
+      tipo: "manual",
+      status: "sucesso",
       criadoPor: user?.nome || "Sistema",
     };
 
-    setBackups((prev) => [novoBackup, ...prev]);
-    adicionarLog(
-      "Backup Criado",
-      `Backup "${nome}" foi criado com sucesso`,
-      "success",
-    );
-  };
+    setBackups((prev) => {
+      const novosBackups = [novoBackup, ...prev].slice(0, 50); // Manter apenas os últimos 50
+      saveToLocalStorage("sistema-backups", novosBackups);
+      return novosBackups;
+    });
 
-  const restaurarBackup = (backupId: string): Configuracao | null => {
+    adicionarLog("Backup Criado", `Backup "${nome}" foi criado`, "success");
+  }, [user?.nome, adicionarLog, saveToLocalStorage]);
+
+  const restaurarBackup = useCallback((backupId: string): Configuracao | null => {
     const backup = backups.find((b) => b.id === backupId);
     if (backup) {
-      adicionarLog(
-        "Backup Restaurado",
-        `Backup "${backup.nome}" foi restaurado`,
-        "warning",
-      );
+      adicionarLog("Backup Restaurado", `Backup "${backup.nome}" foi restaurado`, "info");
       return backup.configuracao;
     }
     return null;
-  };
+  }, [backups, adicionarLog]);
 
-  const limparLogs = () => {
+  const limparLogs = useCallback(() => {
     setLogs([]);
-    adicionarLog(
-      "Logs Limpos",
-      "Todos os logs foram removidos do sistema",
-      "warning",
-    );
-  };
+    saveToLocalStorage("sistema-logs", []);
+    adicionarLog("Logs Limpos", "Todos os logs foram limpos", "info");
+  }, [adicionarLog, saveToLocalStorage]);
 
-  const exportarLogs = () => {
+  const exportarLogs = useCallback(() => {
     const dataStr = JSON.stringify(logs, null, 2);
     const dataUri =
       "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
@@ -311,9 +293,9 @@ export function SistemaProvider({ children }: { children: ReactNode }) {
       "Logs foram exportados com sucesso",
       "info",
     );
-  };
+  }, [logs, adicionarLog]);
 
-  const criarTemplate = (
+  const criarTemplate = useCallback((
     template: Omit<TemplateSistema, "id" | "criadoEm" | "criadoPor">,
   ) => {
     const novoTemplate: TemplateSistema = {
@@ -323,15 +305,20 @@ export function SistemaProvider({ children }: { children: ReactNode }) {
       criadoPor: user?.nome || "Sistema",
     };
 
-    setTemplates((prev) => [novoTemplate, ...prev]);
+    setTemplates((prev) => {
+      const novosTemplates = [novoTemplate, ...prev];
+      saveToLocalStorage("sistema-templates", novosTemplates);
+      return novosTemplates;
+    });
+    
     adicionarLog(
       "Template Criado",
       `Template "${template.nome}" foi criado`,
       "success",
     );
-  };
+  }, [user?.nome, adicionarLog, saveToLocalStorage]);
 
-  const aplicarTemplate = (templateId: string): any[] => {
+  const aplicarTemplate = useCallback((templateId: string): any[] => {
     const template = templates.find((t) => t.id === templateId);
     if (template) {
       adicionarLog(
@@ -347,9 +334,9 @@ export function SistemaProvider({ children }: { children: ReactNode }) {
       }));
     }
     return [];
-  };
+  }, [templates, adicionarLog]);
 
-  const adicionarNotificacao = (
+  const adicionarNotificacao = useCallback((
     titulo: string,
     mensagem: string,
     tipo: "info" | "success" | "warning" | "error",
@@ -361,28 +348,33 @@ export function SistemaProvider({ children }: { children: ReactNode }) {
       tipo,
       lida: false,
       criadaEm: new Date().toISOString(),
+      usuarioId: user?.id, // Adicionar ID do usuário que criou a notificação
     };
 
     setNotificacoes((prev) => {
       const novasNotificacoes = [novaNotificacao, ...prev];
-      // Manter apenas as últimas 50 notificações
-      return novasNotificacoes.slice(0, 50);
+      const notificacoesLimitadas = novasNotificacoes.slice(0, 50); // Manter apenas as últimas 50
+      saveToLocalStorage("sistema-notificacoes", notificacoesLimitadas);
+      return notificacoesLimitadas;
     });
-  };
+  }, [user?.id, saveToLocalStorage]);
 
-  const marcarNotificacaoLida = (notificacaoId: string) => {
-    setNotificacoes((prev) =>
-      prev.map((notificacao) =>
+  const marcarNotificacaoLida = useCallback((notificacaoId: string) => {
+    setNotificacoes((prev) => {
+      const notificacoesAtualizadas = prev.map((notificacao) =>
         notificacao.id === notificacaoId
           ? { ...notificacao, lida: true }
           : notificacao,
-      ),
-    );
-  };
+      );
+      saveToLocalStorage("sistema-notificacoes", notificacoesAtualizadas);
+      return notificacoesAtualizadas;
+    });
+  }, [saveToLocalStorage]);
 
-  const limparNotificacoes = () => {
+  const limparNotificacoes = useCallback(() => {
     setNotificacoes([]);
-  };
+    saveToLocalStorage("sistema-notificacoes", []);
+  }, [saveToLocalStorage]);
 
   return (
     <SistemaContext.Provider

@@ -6,6 +6,7 @@ import { useState, useEffect, createContext, useContext, useMemo, useCallback } 
 import { useClientes } from "@/hooks/use-clientes";
 import { useAuth } from "@/hooks/use-auth";
 import { generateId } from "@/lib/utils";
+import { isFontePrincipal, getPercentualMeta } from "@/lib/fontes-config";
 import type {
   Meta,
   RegraComissao,
@@ -152,15 +153,17 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
   // Memoizar dados processados para melhor performance
   const dadosProcessados = useMemo(() => {
-    const clientesPagos = clientes.filter(c => c.status === "pago");
-    const clientesPendentes = clientes.filter(c => c.status === "pendente");
-    const clientesCancelados = clientes.filter(c => c.status === "cancelado");
+    // Filtrar apenas clientes de fontes principais (não corretores)
+    const clientesPrincipais = clientes.filter(c => isFontePrincipal(c.fonte));
+    const clientesPagos = clientesPrincipais.filter(c => c.status === "pago");
+    const clientesPendentes = clientesPrincipais.filter(c => c.status === "pendente");
+    const clientesCancelados = clientesPrincipais.filter(c => c.status === "cancelado");
 
     return {
       clientesPagos,
       clientesPendentes,
       clientesCancelados,
-      totalClientes: clientes.length,
+      totalClientes: clientesPrincipais.length,
       totalVendas: clientesPagos.reduce((acc, c) => acc + parsearValor(c.valor), 0),
     };
   }, [clientes]);
@@ -274,6 +277,11 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     for (const vendedor of vendedores) {
       const vendasVendedor = clientes.filter((cliente) => {
+        // Filtrar apenas clientes de fontes principais (não corretores)
+        if (!isFontePrincipal(cliente.fonte)) {
+          return false;
+        }
+
         const dataCliente = obterDataCliente(cliente);
         const mesCliente = dataCliente.toLocaleDateString("pt-BR", {
           month: "long",
@@ -396,6 +404,11 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       }
 
       const vendasPeriodo = clientes.filter((cliente) => {
+        // Filtrar apenas clientes de fontes principais (não corretores)
+        if (!isFontePrincipal(cliente.fonte)) {
+          return false;
+        }
+
         const dataCliente = obterDataCliente(cliente);
         return dataCliente >= dataInicio && dataCliente <= dataFim;
       });
@@ -422,10 +435,11 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     mes?: string,
     ano?: number,
   ): VendaPorProduto[] => {
-    let clientesFiltrados = clientes;
+    // Filtrar apenas clientes de fontes principais (não corretores)
+    let clientesFiltrados = clientes.filter(cliente => isFontePrincipal(cliente.fonte));
 
     if (mes && ano) {
-      clientesFiltrados = clientes.filter((cliente) => {
+      clientesFiltrados = clientesFiltrados.filter((cliente) => {
         const dataCliente = obterDataCliente(cliente);
         const mesCliente = dataCliente.toLocaleDateString("pt-BR", {
           month: "long",
@@ -472,6 +486,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     for (const meta of metas.filter((m) => m.mes === mes && m.ano === ano)) {
       const vendasUsuario = clientes.filter((cliente) => {
+        // Para quantidade e acompanhamento geral: considerar apenas fontes principais
+        // Aqui mantemos a lista "vendasUsuario" com principais para métricas de contagem
+        if (!isFontePrincipal(cliente.fonte)) {
+          return false;
+        }
+
         // Para clientes PAGOS: usar data_pagamento para cálculo
         if (cliente.status === "pago" && cliente.data_pagamento) {
           const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
@@ -504,12 +524,21 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       });
 
       // Somar apenas clientes PAGOS para o valor da meta
-      const clientesPagosDoMes = vendasUsuario.filter(cliente => 
-        cliente.status === "pago" && cliente.data_pagamento
-      );
+      // Para valor: somar pagos do mês do usuário ponderando por fonte (inclui corretores)
+      const usuarioMeta = users.find(u => u.nome === meta.usuario);
+      const clientesPagosUsuarioMes = clientes.filter(cliente => {
+        if (cliente.status !== "pago" || !cliente.data_pagamento) return false;
+        if (!usuarioMeta || cliente.criadoPor !== usuarioMeta.id) return false;
+        const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
+        const mesPagamento = dataPagamento.toLocaleDateString("pt-BR", { month: "long" });
+        const anoPagamento = dataPagamento.getFullYear();
+        return mesPagamento === mes && anoPagamento === ano;
+      });
 
-      const vendido = clientesPagosDoMes.reduce((acc, cliente) => {
-        return acc + parsearValor(cliente.valor);
+      const vendido = clientesPagosUsuarioMes.reduce((acc, cliente) => {
+        const valor = parsearValor(cliente.valor);
+        const peso = getPercentualMeta(cliente.fonte);
+        return acc + (isNaN(valor) ? 0 : valor * (isNaN(peso) ? 0 : peso));
       }, 0);
 
       const faltante = Math.max(0, meta.valorMeta - vendido);
@@ -586,11 +615,19 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     // Vendas do mês atual vs mês anterior
     const vendasMesAtual = clientes.filter(c => {
+      // Filtrar apenas clientes de fontes principais (não corretores)
+      if (!isFontePrincipal(c.fonte)) {
+        return false;
+      }
       const data = obterDataCliente(c);
       return data.getMonth() === mesAtual && data.getFullYear() === anoAtual;
     }).reduce((acc, c) => acc + parsearValor(c.valor), 0);
 
     const vendasMesAnterior = clientes.filter(c => {
+      // Filtrar apenas clientes de fontes principais (não corretores)
+      if (!isFontePrincipal(c.fonte)) {
+        return false;
+      }
       const data = obterDataCliente(c);
       const mesAnterior = mesAtual === 0 ? 11 : mesAtual - 1;
       const anoAnterior = mesAtual === 0 ? anoAtual - 1 : anoAtual;
@@ -608,7 +645,9 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     const vendedoresTop = users
       .filter(u => u.role === "user")
       .map(user => {
-        const vendasUser = clientes.filter(c => c.criadoPor === user.id);
+        const vendasUser = clientes.filter(c => 
+          c.criadoPor === user.id && isFontePrincipal(c.fonte)
+        );
         const totalVendas = vendasUser.reduce((acc, c) => acc + parsearValor(c.valor), 0);
         return {
           usuario: user.nome,
@@ -633,17 +672,19 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
       switch (tipo) {
         case 'vendas':
-          dados = clientes.map(c => ({
-            id: c.id,
-            nome: c.cliente,
-            produto: c.produto,
-            banco: c.banco,
-            valor: c.valor,
-            status: c.status,
-            data: c.data,
-            data_pagamento: c.data_pagamento,
-            vendedor: users.find(u => u.id === c.criadoPor)?.nome || 'N/A'
-          }));
+          dados = clientes
+            .filter(c => isFontePrincipal(c.fonte)) // Filtrar apenas fontes principais
+            .map(c => ({
+              id: c.id,
+              nome: c.cliente,
+              produto: c.produto,
+              banco: c.banco,
+              valor: c.valor,
+              status: c.status,
+              data: c.data,
+              data_pagamento: c.data_pagamento,
+              vendedor: users.find(u => u.id === c.criadoPor)?.nome || 'N/A'
+            }));
           nomeArquivo = `vendas_${new Date().toISOString().split('T')[0]}.json`;
           break;
         case 'metas':
