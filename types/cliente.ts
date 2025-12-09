@@ -60,6 +60,7 @@ export const opcoesPredefinidas = {
     "Amigoz",
     "Digito",
     "Banco Parana",
+    "Zelicred",
   ],
   fontes: [
     "Corretor(TI)",

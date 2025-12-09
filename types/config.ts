@@ -73,7 +73,7 @@ export const configuracaoPadrao: ConfiguracaoSistema = {
   camposObrigatorios: ["cliente", "produto", "valor"],
   opcoesPredefinidas: {
     produtos: ["Margem", "Cartão", "Portabilidade"],
-    bancos: ["Porã Cred", "BMG", "Bradesco"],
+    bancos: ["Porã Cred", "BMG", "Bradesco", "Zelicred"],
     fontes: ["Balcão", "Rede Social", "Indicação"],
     usuarios: ["Amanda", "Lais", "Carlos"],
   },
