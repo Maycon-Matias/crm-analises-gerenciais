@@ -68,12 +68,15 @@ export function LineChart({
             const label = context.dataset.label || '';
             const value = context.parsed.y;
             if (formatYAxis) {
+              if (value === null || value === undefined) {
+                return `${label}: -`;
+              }
               return `${label}: ${new Intl.NumberFormat("pt-BR", {
                 style: "currency",
                 currency: "BRL",
               }).format(value)}`;
             }
-            return `${label}: ${value}`;
+            return `${label}: ${value ?? '-'}`;
           }
         }
       }

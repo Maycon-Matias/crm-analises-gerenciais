@@ -119,15 +119,60 @@ export default function AdminClientesPage() {
   const bancosUnicos = [...new Set(clientes.map(c => c.banco))].sort();
   const fontesUnicos = [...new Set(clientes.map(c => c.fonte))].sort();
 
-  // Obter meses de pagamento únicos
+  // Obter meses de cadastro únicos (incluindo ano)
+  const mesesUnicos = useMemo(() => {
+    return [...new Set(clientes
+      .filter(c => c.data) // Filtrar apenas clientes com data válida
+      .map(c => {
+        try {
+          const data = new Date(c.data + 'T00:00:00');
+          if (isNaN(data.getTime())) return null;
+          const mesNome = data.toLocaleDateString('pt-BR', { month: 'long' });
+          const ano = data.getFullYear();
+          return `${mesNome} ${ano}`;
+        } catch {
+          return null;
+        }
+      })
+      .filter((mes): mes is string => mes !== null)
+    )].sort((a, b) => {
+      // Ordenar por data (mais recente primeiro)
+      const [mesA, anoA] = a.split(' ');
+      const [mesB, anoB] = b.split(' ');
+      const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+      const indiceMesA = meses.indexOf(mesA.toLowerCase());
+      const indiceMesB = meses.indexOf(mesB.toLowerCase());
+      if (anoA !== anoB) return Number(anoB) - Number(anoA);
+      return indiceMesB - indiceMesA;
+    });
+  }, [clientes]);
+
+  // Obter meses de pagamento únicos (incluindo ano)
   const mesesPagamentoUnicos = useMemo(() => {
     return [...new Set(clientes
       .filter(c => c.status === "pago" && c.data_pagamento)
       .map(c => {
-        const dataPagamento = new Date(c.data_pagamento! + 'T00:00:00');
-        return dataPagamento.toLocaleDateString('pt-BR', { month: 'long' });
+        try {
+          const dataPagamento = new Date(c.data_pagamento! + 'T00:00:00');
+          if (isNaN(dataPagamento.getTime())) return null;
+          const mesNome = dataPagamento.toLocaleDateString('pt-BR', { month: 'long' });
+          const ano = dataPagamento.getFullYear();
+          return `${mesNome} ${ano}`;
+        } catch {
+          return null;
+        }
       })
-    )].sort();
+      .filter((mes): mes is string => mes !== null)
+    )].sort((a, b) => {
+      // Ordenar por data (mais recente primeiro)
+      const [mesA, anoA] = a.split(' ');
+      const [mesB, anoB] = b.split(' ');
+      const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+      const indiceMesA = meses.indexOf(mesA.toLowerCase());
+      const indiceMesB = meses.indexOf(mesB.toLowerCase());
+      if (anoA !== anoB) return Number(anoB) - Number(anoA);
+      return indiceMesB - indiceMesA;
+    });
   }, [clientes]);
 
   // Função para converter valor string para número
@@ -170,12 +215,18 @@ export default function AdminClientesPage() {
     // Aplicar filtros apenas se não forem "todos"
     if (filtros.mes && filtros.mes !== "todos") {
       resultado = resultado.filter((cliente) => {
-        // SEMPRE usar data de cadastro para filtro de mês
-        const dataCliente = new Date(cliente.data + 'T00:00:00');
-        const mesCliente = dataCliente.toLocaleDateString("pt-BR", {
-          month: "long",
-        });
-        return mesCliente.toLowerCase() === filtros.mes?.toLowerCase();
+        // SEMPRE usar data de cadastro para filtro de mês (considerando ano)
+        if (!cliente.data) return false;
+        try {
+          const dataCliente = new Date(cliente.data + 'T00:00:00');
+          if (isNaN(dataCliente.getTime())) return false;
+          const mesNome = dataCliente.toLocaleDateString("pt-BR", { month: "long" });
+          const ano = dataCliente.getFullYear();
+          const mesAnoCliente = `${mesNome} ${ano}`;
+          return mesAnoCliente === filtros.mes;
+        } catch {
+          return false;
+        }
       });
     }
 
@@ -193,11 +244,20 @@ export default function AdminClientesPage() {
       });
     }
 
-    // Filtro de mês de pagamento - APENAS para clientes pagos
+    // Filtro de mês de pagamento (considerando ano) - APENAS para clientes pagos
     if (mesPagamentoFiltro.length > 0) {
       resultado = resultado.filter((cliente) => {
-        return cliente.status === "pago" && cliente.data_pagamento && 
-               mesPagamentoFiltro.includes(new Date(cliente.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' }));
+        if (!cliente.data_pagamento || cliente.status !== "pago") return false;
+        try {
+          const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
+          if (isNaN(dataPagamento.getTime())) return false;
+          const mesNome = dataPagamento.toLocaleDateString('pt-BR', { month: 'long' });
+          const ano = dataPagamento.getFullYear();
+          const mesAnoPagamento = `${mesNome} ${ano}`;
+          return mesPagamentoFiltro.includes(mesAnoPagamento);
+        } catch {
+          return false;
+        }
       });
     }
 
@@ -616,7 +676,7 @@ export default function AdminClientesPage() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="todos">Todos os meses</SelectItem>
-                            {meses.map(mes => (
+                            {mesesUnicos.map(mes => (
                               <SelectItem key={mes} value={mes}>{mes}</SelectItem>
                             ))}
                           </SelectContent>
@@ -1020,7 +1080,19 @@ export default function AdminClientesPage() {
                                 <span className="text-gray-400 text-sm">-</span>
                               )}
                             </TableCell>
-                            <TableCell>{cliente.mes}</TableCell>
+                            <TableCell>
+                              {cliente.data ? (() => {
+                                try {
+                                  const data = new Date(cliente.data + 'T00:00:00');
+                                  if (!isNaN(data.getTime())) {
+                                    const mesNome = data.toLocaleDateString('pt-BR', { month: 'long' });
+                                    const ano = data.getFullYear();
+                                    return `${mesNome} ${ano}`;
+                                  }
+                                } catch {}
+                                return cliente.mes || '-';
+                              })() : cliente.mes || '-'}
+                            </TableCell>
                             <TableCell>{cliente.usuarios || "-"}</TableCell>
                             <TableCell>
                               {cliente.cpf ? (

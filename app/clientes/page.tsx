@@ -18,6 +18,7 @@ import { Edit, PlusCircle, Search, Trash2, Filter, X, Eye } from "lucide-react";
 import { getPercentualMeta, isFonteCorretor } from "@/lib/fontes-config";
 import { useClientes } from "@/hooks/use-clientes";
 import { useAuth } from "@/hooks/use-auth";
+import { debugLog } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProtectedLayout } from "@/components/protected-layout";
 import { SidebarLayout } from "@/components/sidebar-layout";
@@ -30,7 +31,7 @@ import {
 } from "@/components/ui/dialog";
 
 export default function ClientesPage() {
-  console.log("🚀 Componente ClientesPage sendo renderizado");
+  debugLog("🚀 Componente ClientesPage sendo renderizado");
   
   const { clientes, removerCliente, exportarParaCSV, exportarParaHTML, exportarClientesComPrevisao } = useClientes();
   const { user } = useAuth();
@@ -78,17 +79,57 @@ export default function ClientesPage() {
     }
   }, [searchParams]);
 
-  // Obter lista de meses únicos para filtros
-  const mesesUnicos = [...new Set(clientes.map(c => c.mes))].sort();
+  // Obter lista de meses únicos para filtros (incluindo ano)
+  const mesesUnicos = [...new Set(clientes
+    .filter(c => c.data) // Filtrar apenas clientes com data válida
+    .map(c => {
+      try {
+        const data = new Date(c.data + 'T00:00:00');
+        if (isNaN(data.getTime())) return null;
+        const mesNome = data.toLocaleDateString('pt-BR', { month: 'long' });
+        const ano = data.getFullYear();
+        return `${mesNome} ${ano}`;
+      } catch {
+        return null;
+      }
+    })
+    .filter((mes): mes is string => mes !== null)
+  )].sort((a, b) => {
+    // Ordenar por data (mais recente primeiro)
+    const [mesA, anoA] = a.split(' ');
+    const [mesB, anoB] = b.split(' ');
+    const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    const indiceMesA = meses.indexOf(mesA.toLowerCase());
+    const indiceMesB = meses.indexOf(mesB.toLowerCase());
+    if (anoA !== anoB) return Number(anoB) - Number(anoA);
+    return indiceMesB - indiceMesA;
+  });
   
-  // Meses de pagamento (apenas para clientes pagos)
+  // Meses de pagamento (apenas para clientes pagos) - incluindo ano
   const mesesPagamentoUnicos = [...new Set(clientes
     .filter(c => c.status === "pago" && c.data_pagamento)
     .map(c => {
-      const dataPagamento = new Date(c.data_pagamento! + 'T00:00:00');
-      return dataPagamento.toLocaleDateString('pt-BR', { month: 'long' });
+      try {
+        const dataPagamento = new Date(c.data_pagamento! + 'T00:00:00');
+        if (isNaN(dataPagamento.getTime())) return null;
+        const mesNome = dataPagamento.toLocaleDateString('pt-BR', { month: 'long' });
+        const ano = dataPagamento.getFullYear();
+        return `${mesNome} ${ano}`;
+      } catch {
+        return null;
+      }
     })
-  )].sort();
+    .filter((mes): mes is string => mes !== null)
+  )].sort((a, b) => {
+    // Ordenar por data (mais recente primeiro)
+    const [mesA, anoA] = a.split(' ');
+    const [mesB, anoB] = b.split(' ');
+    const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    const indiceMesA = meses.indexOf(mesA.toLowerCase());
+    const indiceMesB = meses.indexOf(mesB.toLowerCase());
+    if (anoA !== anoB) return Number(anoB) - Number(anoA);
+    return indiceMesB - indiceMesA;
+  });
   
   const usuariosUnicos = [...new Set(clientes.map(c => c.usuarios))].sort();
   const fontesUnicas = [...new Set(clientes.map(c => c.fonte))];
@@ -105,13 +146,77 @@ export default function ClientesPage() {
     }
   }, [mostrarFiltrosAvancados]);
 
-  // DEBUG: Monitorar quando clientes são carregados
+  // DEBUG: Monitorar quando clientes são carregados (apenas em desenvolvimento)
   useEffect(() => {
-    console.log("📥 Clientes carregados:", clientes.length);
+    debugLog("📥 Clientes carregados:", clientes.length);
     if (clientes.length > 0) {
-      console.log("🔍 Primeiro cliente:", clientes[0]);
+      debugLog("🔍 Primeiro cliente:", clientes[0]);
     }
   }, [clientes]);
+
+  const clientesFiltrados = clientes.filter(
+    (cliente) => {
+      const pertenceAoUsuario = user?.role === "admin" || cliente.criadoPor === user?.id;
+      
+      // Filtro de busca
+      const buscaMatch =
+        cliente.cliente.toLowerCase().includes(busca.toLowerCase()) ||
+        cliente.produto.toLowerCase().includes(busca.toLowerCase()) ||
+        cliente.banco.toLowerCase().includes(busca.toLowerCase()) ||
+        cliente.fonte.toLowerCase().includes(busca.toLowerCase());
+      
+      // Filtro de status
+      const statusMatch = statusFiltro === "todos" || cliente.status === statusFiltro;
+      
+      // Filtro de mês de cadastro (considerando ano)
+      let mesMatch = true;
+      if (mesFiltro !== "todos" && cliente.data) {
+        try {
+          const data = new Date(cliente.data + 'T00:00:00');
+          if (!isNaN(data.getTime())) {
+            const mesNome = data.toLocaleDateString('pt-BR', { month: 'long' });
+            const ano = data.getFullYear();
+            const mesAnoCliente = `${mesNome} ${ano}`;
+            mesMatch = mesAnoCliente === mesFiltro;
+          }
+        } catch {
+          // Se houver erro ao processar a data, manter o comportamento antigo como fallback
+          mesMatch = cliente.mes === mesFiltro;
+        }
+      }
+      
+      // Filtro de data específica de cadastro
+      const dataMatch = !dataEspecifica || cliente.data === dataEspecifica;
+      
+      // Filtro de data específica de pagamento
+      const dataPagamentoMatch = !dataPagamentoEspecifica || 
+        (cliente.status === "pago" && cliente.data_pagamento === dataPagamentoEspecifica);
+      
+      // Filtro de mês de pagamento (considerando ano)
+      let mesPagamentoMatch = true;
+      if (mesPagamentoFiltro !== "todos" && cliente.status === "pago" && cliente.data_pagamento) {
+        try {
+          const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
+          if (!isNaN(dataPagamento.getTime())) {
+            const mesNome = dataPagamento.toLocaleDateString('pt-BR', { month: 'long' });
+            const ano = dataPagamento.getFullYear();
+            const mesAnoPagamento = `${mesNome} ${ano}`;
+            mesPagamentoMatch = mesAnoPagamento === mesPagamentoFiltro;
+          }
+        } catch {
+          mesPagamentoMatch = false;
+        }
+      }
+      
+      // Filtro de usuário - apenas para administradores
+      const usuarioMatch = user?.role === "admin" 
+        ? (usuarioFiltro === "todos" || cliente.usuarios === usuarioFiltro)
+        : true; // Para vendedores, sempre true pois só veem seus próprios clientes
+      
+      return pertenceAoUsuario && buscaMatch && statusMatch && mesMatch && 
+             dataMatch && dataPagamentoMatch && mesPagamentoMatch && usuarioMatch;
+    }
+  );
 
   // Função de busca SIMPLES e DIRETA
   const buscarCliente = (cliente: any, termoBusca: string) => {
@@ -119,8 +224,8 @@ export default function ClientesPage() {
     
     const busca = termoBusca.toLowerCase().trim();
     
-    // DEBUG: Log detalhado para cada cliente
-    console.log("🔍 Verificando cliente:", {
+    // DEBUG: Log detalhado para cada cliente (apenas em desenvolvimento)
+    debugLog("🔍 Verificando cliente:", {
       nome: cliente.cliente,
       busca: busca,
       temCliente: !!cliente.cliente,
@@ -156,57 +261,6 @@ export default function ClientesPage() {
     return false;
   };
 
-  // Filtragem SIMPLIFICADA
-  const clientesFiltrados = clientes.filter((cliente) => {
-    // DEBUG: Log para ver quantos clientes estão sendo processados
-    if (busca && busca.trim() !== '') {
-      console.log("🔍 Processando cliente:", cliente.cliente, "| Total de clientes:", clientes.length);
-    }
-    
-    // 1. Verificar se pertence ao usuário (SIMPLIFICADO PARA TESTE)
-    let pertenceAoUsuario = true;
-    if (!isAdmin) {
-      // Teste de comparação mais detalhado
-      const comparacao = cliente.criadoPor === user?.id;
-      console.log(`🔍 Cliente ${cliente.cliente}:`, {
-        criadoPor: cliente.criadoPor,
-        userId: user?.id,
-        comparacao,
-        tipoCriadoPor: typeof cliente.criadoPor,
-        tipoUserId: typeof user?.id
-      });
-      
-      pertenceAoUsuario = comparacao;
-    }
-    
-    if (!pertenceAoUsuario) {
-      console.log(`❌ Cliente ${cliente.cliente} não pertence ao usuário ${user?.id}. CriadoPor: ${cliente.criadoPor}`);
-      return false;
-    }
-    console.log(`✅ Cliente ${cliente.cliente} pertence ao usuário ${user?.id}`);
-    
-    // 2. Verificar busca
-    const buscaMatch = buscarCliente(cliente, busca);
-    if (!buscaMatch) return false;
-    
-    // 3. Verificar outros filtros
-    if (statusFiltro !== "todos" && cliente.status !== statusFiltro) return false;
-    if (mesFiltro !== "todos" && cliente.mes !== mesFiltro) return false;
-    if (dataEspecifica && cliente.data !== dataEspecifica) return false;
-    if (dataPagamentoEspecifica && (!cliente.data_pagamento || cliente.data_pagamento !== dataPagamentoEspecifica)) return false;
-    if (mesPagamentoFiltro !== "todos" && (!cliente.data_pagamento || new Date(cliente.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' }) !== mesPagamentoFiltro)) return false;
-    if (usuarioFiltro !== "todos" && cliente.usuarios !== usuarioFiltro) return false;
-    if (fonteFiltro !== "todos" && cliente.fonte !== fonteFiltro) return false;
-    if (tipoFonteFiltro !== "todos") {
-      if (tipoFonteFiltro === "principal") {
-        // Incluir fontes principais E corretores (que contam 50% para metas)
-        return true; // Todos os clientes passam quando filtro é "principal"
-      }
-      if (tipoFonteFiltro === "corretor" && !cliente.fonte.includes("Corretor")) return false;
-    }
-    
-    return true;
-  });
 
   // DEBUG: Monitorar mudanças na busca (movido para depois da declaração)
   useEffect(() => {
@@ -214,19 +268,19 @@ export default function ClientesPage() {
     console.log("📊 Total de clientes filtrados:", clientesFiltrados.length);
   }, [busca, clientesFiltrados.length]);
 
-  // DEBUG: Monitorar carregamento de clientes
+  // DEBUG: Monitorar carregamento de clientes (apenas em desenvolvimento)
   useEffect(() => {
-    console.log("👤 Usuário atual:", user);
-    console.log("📋 Total de clientes carregados:", clientes.length);
-    console.log("🔍 Clientes filtrados:", clientesFiltrados.length);
-    console.log("👥 É admin?", isAdmin);
+    debugLog("👤 Usuário atual:", user);
+    debugLog("📋 Total de clientes carregados:", clientes.length);
+    debugLog("🔍 Clientes filtrados:", clientesFiltrados.length);
+    debugLog("👥 É admin?", isAdmin);
     
     if (clientes.length > 0) {
-      console.log("📝 Primeiro cliente:", clientes[0]);
-      console.log("🏷️ Clientes por criador:", clientes.map(c => ({ cliente: c.cliente, criadoPor: c.criadoPor })));
+      debugLog("📝 Primeiro cliente:", clientes[0]);
+      debugLog("🏷️ Clientes por criador:", clientes.map(c => ({ cliente: c.cliente, criadoPor: c.criadoPor })));
       
       // Debug específico para comparação de IDs
-      console.log("🔍 Debug IDs:", {
+      debugLog("🔍 Debug IDs:", {
         userId: user?.id,
         userType: typeof user?.id,
         primeiroClienteCriadoPor: clientes[0].criadoPor,
@@ -782,11 +836,37 @@ export default function ClientesPage() {
                             </TableCell>
                             <TableCell>{cliente.valor}</TableCell>
                             <TableCell>{cliente.data}</TableCell>
-                            <TableCell>{cliente.mes}</TableCell>
+                            <TableCell>
+                              {cliente.data ? (() => {
+                                try {
+                                  const data = new Date(cliente.data + 'T00:00:00');
+                                  if (!isNaN(data.getTime())) {
+                                    const mesNome = data.toLocaleDateString('pt-BR', { month: 'long' });
+                                    const ano = data.getFullYear();
+                                    return `${mesNome} ${ano}`;
+                                  }
+                                } catch {}
+                                return cliente.mes || '-';
+                              })() : cliente.mes || '-'}
+                            </TableCell>
                             <TableCell>{cliente.usuarios || cliente.criadoPor}</TableCell>
                             {podeVerDadosSensiveis(cliente) && <TableCell>{cliente.cpf || "-"}</TableCell>}
                             {podeVerDadosSensiveis(cliente) && <TableCell>{cliente.telefone || "-"}</TableCell>}
-                            <TableCell>{cliente.observacoes || "-"}</TableCell>
+                            <TableCell>
+                              {user?.role === "admin" ? (
+                                cliente.observacoes ? (
+                                  <div className="max-w-xs">
+                                    <p className="text-sm text-gray-600 truncate" title={cliente.observacoes}>
+                                      {cliente.observacoes}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 text-sm">-</span>
+                                )
+                              ) : (
+                                <span className="text-gray-400 text-sm">-</span>
+                              )}
+                            </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
                                 <Button
@@ -839,9 +919,10 @@ export default function ClientesPage() {
               )}
             </CardContent>
           </Card>
+        </div>
 
-          {/* Modal de Detalhes do Cliente */}
-          <Dialog open={modalAberto} onOpenChange={setModalAberto}>
+        {/* Modal de Detalhes do Cliente */}
+        <Dialog open={modalAberto} onOpenChange={setModalAberto}>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Detalhes do Cliente</DialogTitle>
@@ -860,53 +941,103 @@ export default function ClientesPage() {
                       <label className="text-sm font-medium text-gray-700">Produto</label>
                       <p className="text-sm text-gray-900">{clienteSelecionado.produto}</p>
                     </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium text-gray-700">Banco</label>
                       <p className="text-sm text-gray-900">{clienteSelecionado.banco}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Valor</label>
-                      <p className="text-sm text-gray-900">{clienteSelecionado.valor}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Status</label>
-                      <p className="text-sm text-gray-900">{clienteSelecionado.status}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Data</label>
-                      <p className="text-sm text-gray-900">{clienteSelecionado.data}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Mês</label>
-                      <p className="text-sm text-gray-900">{clienteSelecionado.mes}</p>
-                    </div>
-                    <div>
                       <label className="text-sm font-medium text-gray-700">Fonte</label>
                       <p className="text-sm text-gray-900">{clienteSelecionado.fonte}</p>
                     </div>
-                    {podeVerDadosSensiveis(clienteSelecionado) && (
-                      <>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">CPF</label>
-                          <p className="text-sm text-gray-900">{clienteSelecionado.cpf || "-"}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Telefone</label>
-                          <p className="text-sm text-gray-900">{clienteSelecionado.telefone || "-"}</p>
-                        </div>
-                      </>
-                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Valor</label>
+                    <p className="text-sm text-gray-900">
+                      {(!isNaN(Number(clienteSelecionado.valor)) && clienteSelecionado.valor !== "") 
+                        ? Number(clienteSelecionado.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) 
+                        : clienteSelecionado.valor}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Observações</label>
-                    <p className="text-sm text-gray-900">{clienteSelecionado.observacoes || "Nenhuma observação"}</p>
+                    <label className="text-sm font-medium text-gray-700">Status</label>
+                    <p className="text-sm text-gray-900 capitalize">{clienteSelecionado.status}</p>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Data</label>
+                    <p className="text-sm text-gray-900">
+                      {new Date(clienteSelecionado.data + 'T00:00:00').toLocaleDateString("pt-BR")}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Mês</label>
+                    <p className="text-sm text-gray-900">
+                      {clienteSelecionado.data ? (() => {
+                        try {
+                          const data = new Date(clienteSelecionado.data + 'T00:00:00');
+                          if (!isNaN(data.getTime())) {
+                            const mesNome = data.toLocaleDateString('pt-BR', { month: 'long' });
+                            const ano = data.getFullYear();
+                            return `${mesNome} ${ano}`;
+                          }
+                        } catch {}
+                        return clienteSelecionado.mes || '-';
+                      })() : clienteSelecionado.mes || '-'}
+                    </p>
+                  </div>
+                </div>
+
+                {clienteSelecionado.data_pagamento && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Data do Pagamento</label>
+                    <p className="text-sm text-gray-900">
+                      {new Date(clienteSelecionado.data_pagamento + 'T00:00:00').toLocaleDateString("pt-BR")}
+                    </p>
+                  </div>
+                )}
+
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Informações de Contato</h4>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">CPF</label>
+                      {clienteSelecionado.cpf ? (
+                        <p className="text-sm text-gray-900">{clienteSelecionado.cpf}</p>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">Não informado</p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Telefone</label>
+                      {clienteSelecionado.telefone ? (
+                        <p className="text-sm text-gray-900">{clienteSelecionado.telefone}</p>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">Não informado</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {clienteSelecionado.observacoes && (
+                  <div className="border-t pt-4">
+                    <label className="text-sm font-medium text-gray-700">Observações</label>
+                    <p className="text-sm text-gray-900 mt-1">{clienteSelecionado.observacoes}</p>
+                  </div>
+                )}
                 </div>
               )}
             </DialogContent>
           </Dialog>
-        </div>
-      </SidebarLayout>
-    </ProtectedLayout>
-  );
+        </SidebarLayout>
+      </ProtectedLayout>
+    );
 }
