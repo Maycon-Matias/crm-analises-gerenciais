@@ -4,8 +4,5 @@
   "framework": "nextjs",
   "installCommand": "npm install",
   "devCommand": "npm run dev",
-  "regions": ["gru1"],
-  "env": {
-    "MONGODB_URI": "mongodb+srv://admin:admin123@poracred.lep058a.mongodb.net/crm?retryWrites=true&w=majority&appName=PoraCred"
-  }
+  "regions": ["gru1"]
 } 
