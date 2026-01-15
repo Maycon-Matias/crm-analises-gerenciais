@@ -72,4 +72,35 @@ export default [
       },
     },
   },
+  // Configuração específica para arquivos .js que podem usar CommonJS
+  {
+    files: ["**/*.js"],
+    ignores: [
+      "node_modules/**",
+      ".next/**",
+      "scripts/**",
+      "**/debug-*.js",
+      "debug-clientes.js",
+      "**/*.config.js"
+    ],
+    languageOptions: {
+      parserOptions: {
+        ecmaVersion: 2020,
+        sourceType: "module",
+      },
+      globals: {
+        require: "readonly",
+        module: "readonly",
+        exports: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly",
+        process: "readonly",
+      },
+    },
+    rules: {
+      'no-undef': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      'no-restricted-globals': 'off',
+    },
+  },
 ]; 
