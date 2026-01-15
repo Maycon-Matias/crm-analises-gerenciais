@@ -63,6 +63,8 @@ export default [
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       'jsx-a11y/anchor-is-valid': 'warn',
       'no-undef': 'off', // Desabilitar verificação de variáveis não definidas para evitar problemas com require()
+      '@typescript-eslint/no-require-imports': 'off', // Permitir require() em arquivos .js
+      'no-restricted-globals': 'off', // Permitir require como global
     },
     settings: {
       react: {
