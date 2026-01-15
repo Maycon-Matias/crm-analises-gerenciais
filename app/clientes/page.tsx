@@ -69,6 +69,7 @@ export default function ClientesPage() {
   const [clienteSelecionado, setClienteSelecionado] = useState<any>(null);
   const [modalAberto, setModalAberto] = useState(false);
 
+<<<<<<< HEAD
   // Ler parâmetros de URL para filtros automáticos
   useEffect(() => {
     const statusFromURL = searchParams.get('status');
@@ -78,17 +79,57 @@ export default function ClientesPage() {
     }
   }, [searchParams]);
 
-  // Obter lista de meses únicos para filtros
-  const mesesUnicos = [...new Set(clientes.map(c => c.mes))].sort();
+  // Obter lista de meses únicos para filtros (incluindo ano)
+  const mesesUnicos = [...new Set(clientes
+    .filter(c => c.data) // Filtrar apenas clientes com data válida
+    .map(c => {
+      try {
+        const data = new Date(c.data + 'T00:00:00');
+        if (isNaN(data.getTime())) return null;
+        const mesNome = data.toLocaleDateString('pt-BR', { month: 'long' });
+        const ano = data.getFullYear();
+        return `${mesNome} ${ano}`;
+      } catch {
+        return null;
+      }
+    })
+    .filter((mes): mes is string => mes !== null)
+  )].sort((a, b) => {
+    // Ordenar por data (mais recente primeiro)
+    const [mesA, anoA] = a.split(' ');
+    const [mesB, anoB] = b.split(' ');
+    const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    const indiceMesA = meses.indexOf(mesA.toLowerCase());
+    const indiceMesB = meses.indexOf(mesB.toLowerCase());
+    if (anoA !== anoB) return Number(anoB) - Number(anoA);
+    return indiceMesB - indiceMesA;
+  });
   
-  // Meses de pagamento (apenas para clientes pagos)
+  // Meses de pagamento (apenas para clientes pagos) - incluindo ano
   const mesesPagamentoUnicos = [...new Set(clientes
     .filter(c => c.status === "pago" && c.data_pagamento)
     .map(c => {
-      const dataPagamento = new Date(c.data_pagamento! + 'T00:00:00');
-      return dataPagamento.toLocaleDateString('pt-BR', { month: 'long' });
+      try {
+        const dataPagamento = new Date(c.data_pagamento! + 'T00:00:00');
+        if (isNaN(dataPagamento.getTime())) return null;
+        const mesNome = dataPagamento.toLocaleDateString('pt-BR', { month: 'long' });
+        const ano = dataPagamento.getFullYear();
+        return `${mesNome} ${ano}`;
+      } catch {
+        return null;
+      }
     })
-  )].sort();
+    .filter((mes): mes is string => mes !== null)
+  )].sort((a, b) => {
+    // Ordenar por data (mais recente primeiro)
+    const [mesA, anoA] = a.split(' ');
+    const [mesB, anoB] = b.split(' ');
+    const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    const indiceMesA = meses.indexOf(mesA.toLowerCase());
+    const indiceMesB = meses.indexOf(mesB.toLowerCase());
+    if (anoA !== anoB) return Number(anoB) - Number(anoA);
+    return indiceMesB - indiceMesA;
+  });
   
   const usuariosUnicos = [...new Set(clientes.map(c => c.usuarios))].sort();
   const fontesUnicas = [...new Set(clientes.map(c => c.fonte))];
@@ -112,6 +153,70 @@ export default function ClientesPage() {
       console.log("🔍 Primeiro cliente:", clientes[0]);
     }
   }, [clientes]);
+
+  const clientesFiltrados = clientes.filter(
+    (cliente) => {
+      const pertenceAoUsuario = user?.role === "admin" || cliente.criadoPor === user?.id;
+      
+      // Filtro de busca
+      const buscaMatch =
+        cliente.cliente.toLowerCase().includes(busca.toLowerCase()) ||
+        cliente.produto.toLowerCase().includes(busca.toLowerCase()) ||
+        cliente.banco.toLowerCase().includes(busca.toLowerCase()) ||
+        cliente.fonte.toLowerCase().includes(busca.toLowerCase());
+      
+      // Filtro de status
+      const statusMatch = statusFiltro === "todos" || cliente.status === statusFiltro;
+      
+      // Filtro de mês de cadastro (considerando ano)
+      let mesMatch = true;
+      if (mesFiltro !== "todos" && cliente.data) {
+        try {
+          const data = new Date(cliente.data + 'T00:00:00');
+          if (!isNaN(data.getTime())) {
+            const mesNome = data.toLocaleDateString('pt-BR', { month: 'long' });
+            const ano = data.getFullYear();
+            const mesAnoCliente = `${mesNome} ${ano}`;
+            mesMatch = mesAnoCliente === mesFiltro;
+          }
+        } catch {
+          // Se houver erro ao processar a data, manter o comportamento antigo como fallback
+          mesMatch = cliente.mes === mesFiltro;
+        }
+      }
+      
+      // Filtro de data específica de cadastro
+      const dataMatch = !dataEspecifica || cliente.data === dataEspecifica;
+      
+      // Filtro de data específica de pagamento
+      const dataPagamentoMatch = !dataPagamentoEspecifica || 
+        (cliente.status === "pago" && cliente.data_pagamento === dataPagamentoEspecifica);
+      
+      // Filtro de mês de pagamento (considerando ano)
+      let mesPagamentoMatch = true;
+      if (mesPagamentoFiltro !== "todos" && cliente.status === "pago" && cliente.data_pagamento) {
+        try {
+          const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
+          if (!isNaN(dataPagamento.getTime())) {
+            const mesNome = dataPagamento.toLocaleDateString('pt-BR', { month: 'long' });
+            const ano = dataPagamento.getFullYear();
+            const mesAnoPagamento = `${mesNome} ${ano}`;
+            mesPagamentoMatch = mesAnoPagamento === mesPagamentoFiltro;
+          }
+        } catch {
+          mesPagamentoMatch = false;
+        }
+      }
+      
+      // Filtro de usuário - apenas para administradores
+      const usuarioMatch = user?.role === "admin" 
+        ? (usuarioFiltro === "todos" || cliente.usuarios === usuarioFiltro)
+        : true; // Para vendedores, sempre true pois só veem seus próprios clientes
+      
+      return pertenceAoUsuario && buscaMatch && statusMatch && mesMatch && 
+             dataMatch && dataPagamentoMatch && mesPagamentoMatch && usuarioMatch;
+    }
+  );
 
   // Função de busca SIMPLES e DIRETA
   const buscarCliente = (cliente: any, termoBusca: string) => {
@@ -782,11 +887,38 @@ export default function ClientesPage() {
                             </TableCell>
                             <TableCell>{cliente.valor}</TableCell>
                             <TableCell>{cliente.data}</TableCell>
-                            <TableCell>{cliente.mes}</TableCell>
+                            <TableCell>
+                              {cliente.data ? (() => {
+                                try {
+                                  const data = new Date(cliente.data + 'T00:00:00');
+                                  if (!isNaN(data.getTime())) {
+                                    const mesNome = data.toLocaleDateString('pt-BR', { month: 'long' });
+                                    const ano = data.getFullYear();
+                                    return `${mesNome} ${ano}`;
+                                  }
+                                } catch {}
+                                return cliente.mes || '-';
+                              })() : cliente.mes || '-'}
+                            </TableCell>
                             <TableCell>{cliente.usuarios || cliente.criadoPor}</TableCell>
                             {podeVerDadosSensiveis(cliente) && <TableCell>{cliente.cpf || "-"}</TableCell>}
                             {podeVerDadosSensiveis(cliente) && <TableCell>{cliente.telefone || "-"}</TableCell>}
-                            <TableCell>{cliente.observacoes || "-"}</TableCell>
+                            <TableCell>
+                              {user?.role === "admin" ? (
+                                cliente.observacoes ? (
+                                  <div className="max-w-xs">
+                                    <p className="text-sm text-gray-600 truncate" title={cliente.observacoes}>
+                                      {cliente.observacoes}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 text-sm">-</span>
+                                )
+                              ) : (
+                                <span className="text-gray-400 text-sm">-</span>
+                              )}
+                            </TableCell>
+>>>>>>> a9e334e (Corrigir separaÃ§Ã£o por ano dos clientes nos filtros de data)
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
                                 <Button
@@ -840,6 +972,7 @@ export default function ClientesPage() {
             </CardContent>
           </Card>
 
+<<<<<<< HEAD
           {/* Modal de Detalhes do Cliente */}
           <Dialog open={modalAberto} onOpenChange={setModalAberto}>
             <DialogContent className="max-w-2xl">
@@ -852,6 +985,81 @@ export default function ClientesPage() {
               {clienteSelecionado && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Cliente</label>
+                    <p className="text-sm text-gray-900">{clienteSelecionado.cliente}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Produto</label>
+                    <p className="text-sm text-gray-900">{clienteSelecionado.produto}</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Banco</label>
+                    <p className="text-sm text-gray-900">{clienteSelecionado.banco}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Fonte</label>
+                    <p className="text-sm text-gray-900">{clienteSelecionado.fonte}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Valor</label>
+                    <p className="text-sm text-gray-900">
+                      {(!isNaN(Number(clienteSelecionado.valor)) && clienteSelecionado.valor !== "") 
+                        ? Number(clienteSelecionado.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) 
+                        : clienteSelecionado.valor}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Status</label>
+                    <p className="text-sm text-gray-900 capitalize">{clienteSelecionado.status}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Data</label>
+                    <p className="text-sm text-gray-900">
+                      {new Date(clienteSelecionado.data + 'T00:00:00').toLocaleDateString("pt-BR")}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Mês</label>
+                    <p className="text-sm text-gray-900">
+                      {clienteSelecionado.data ? (() => {
+                        try {
+                          const data = new Date(clienteSelecionado.data + 'T00:00:00');
+                          if (!isNaN(data.getTime())) {
+                            const mesNome = data.toLocaleDateString('pt-BR', { month: 'long' });
+                            const ano = data.getFullYear();
+                            return `${mesNome} ${ano}`;
+                          }
+                        } catch {}
+                        return clienteSelecionado.mes || '-';
+                      })() : clienteSelecionado.mes || '-'}
+                    </p>
+                  </div>
+                </div>
+
+                {clienteSelecionado.data_pagamento && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Data do Pagamento</label>
+                    <p className="text-sm text-gray-900">
+                      {new Date(clienteSelecionado.data_pagamento + 'T00:00:00').toLocaleDateString("pt-BR")}
+                    </p>
+                  </div>
+                )}
+
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Informações de Contato</h4>
+                  
+                  <div className="space-y-3">
+>>>>>>> a9e334e (Corrigir separaÃ§Ã£o por ano dos clientes nos filtros de data)
                     <div>
                       <label className="text-sm font-medium text-gray-700">Cliente</label>
                       <p className="text-sm text-gray-900">{clienteSelecionado.cliente}</p>
