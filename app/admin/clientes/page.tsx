@@ -245,7 +245,7 @@ export default function AdminClientesPage() {
     }
 
     // Filtro de mês de pagamento (considerando ano) - APENAS para clientes pagos
-    if (mesPagamentoFiltro !== "todos") {
+    if (mesPagamentoFiltro.length > 0) {
       resultado = resultado.filter((cliente) => {
         if (!cliente.data_pagamento || cliente.status !== "pago") return false;
         try {
@@ -254,7 +254,7 @@ export default function AdminClientesPage() {
           const mesNome = dataPagamento.toLocaleDateString('pt-BR', { month: 'long' });
           const ano = dataPagamento.getFullYear();
           const mesAnoPagamento = `${mesNome} ${ano}`;
-          return mesAnoPagamento === mesPagamentoFiltro;
+          return mesPagamentoFiltro.includes(mesAnoPagamento);
         } catch {
           return false;
         }
