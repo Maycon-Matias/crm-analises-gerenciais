@@ -56,7 +56,16 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
         apiUrl = `/api/clientes/meus?userId=${user.id}&userRole=${user.role}`;
       }
       
-      const res = await fetch(apiUrl);
+      // Adicionar cache-busting para garantir dados atualizados
+      const cacheBuster = `?t=${Date.now()}`;
+      const urlWithCacheBust = apiUrl.includes('?') ? `${apiUrl}&_t=${Date.now()}` : `${apiUrl}?_t=${Date.now()}`;
+      const res = await fetch(urlWithCacheBust, {
+        cache: 'no-store', // Desabilitar cache do Next.js
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        }
+      });
       
       if (!res.ok) {
         throw new Error(`Erro na API: ${res.status}`);
