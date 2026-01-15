@@ -13,7 +13,10 @@ export default [
       "build/**",
       "out/**",
       "scripts/**",
-      "debug-*.js"
+      "**/debug-*.js",
+      "**/*.config.js",
+      "**/postcss.config.*",
+      "**/tailwind.config.*"
     ],
   },
   {
