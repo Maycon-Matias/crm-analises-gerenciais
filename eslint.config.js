@@ -16,11 +16,17 @@ export default [
       "**/debug-*.js",
       "**/*.config.js",
       "**/postcss.config.*",
-      "**/tailwind.config.*"
+      "**/tailwind.config.*",
+      "debug-clientes.js"
     ],
   },
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
+    ignores: [
+      "scripts/**",
+      "**/debug-*.js",
+      "debug-clientes.js"
+    ],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
