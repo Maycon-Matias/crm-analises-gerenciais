@@ -64,6 +64,9 @@ export function DoughnutChart({
           label: function(context) {
             const label = context.label || '';
             const value = context.parsed;
+            if (value === null || value === undefined) {
+              return `${label}: -`;
+            }
             const total = context.dataset.data.reduce((a, b) => (a as number) + (b as number), 0) as number;
             const percentage = ((value / total) * 100).toFixed(1);
             

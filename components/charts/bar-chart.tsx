@@ -69,6 +69,9 @@ export function BarChart({
             const label = context.dataset.label || '';
             const value = context.parsed.y || context.parsed.x;
             if (formatYAxis) {
+              if (value === null || value === undefined) {
+                return `${label}: -`;
+              }
               return `${label}: ${new Intl.NumberFormat("pt-BR", {
                 style: "currency",
                 currency: "BRL",
@@ -76,7 +79,7 @@ export function BarChart({
                 maximumFractionDigits: 0,
               }).format(value as number)}`;
             }
-            return `${label}: ${value}`;
+            return `${label}: ${value ?? '-'}`;
           }
         }
       }
