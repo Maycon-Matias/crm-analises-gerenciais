@@ -69,7 +69,6 @@ export default function ClientesPage() {
   const [clienteSelecionado, setClienteSelecionado] = useState<any>(null);
   const [modalAberto, setModalAberto] = useState(false);
 
-<<<<<<< HEAD
   // Ler parâmetros de URL para filtros automáticos
   useEffect(() => {
     const statusFromURL = searchParams.get('status');
@@ -918,7 +917,6 @@ export default function ClientesPage() {
                                 <span className="text-gray-400 text-sm">-</span>
                               )}
                             </TableCell>
->>>>>>> a9e334e (Corrigir separaÃ§Ã£o por ano dos clientes nos filtros de data)
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
                                 <Button
@@ -972,7 +970,6 @@ export default function ClientesPage() {
             </CardContent>
           </Card>
 
-<<<<<<< HEAD
           {/* Modal de Detalhes do Cliente */}
           <Dialog open={modalAberto} onOpenChange={setModalAberto}>
             <DialogContent className="max-w-2xl">
@@ -985,23 +982,23 @@ export default function ClientesPage() {
               {clienteSelecionado && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Cliente</label>
-                    <p className="text-sm text-gray-900">{clienteSelecionado.cliente}</p>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Cliente</label>
+                      <p className="text-sm text-gray-900">{clienteSelecionado.cliente}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Produto</label>
+                      <p className="text-sm text-gray-900">{clienteSelecionado.produto}</p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Produto</label>
-                    <p className="text-sm text-gray-900">{clienteSelecionado.produto}</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Banco</label>
-                    <p className="text-sm text-gray-900">{clienteSelecionado.banco}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Fonte</label>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Banco</label>
+                      <p className="text-sm text-gray-900">{clienteSelecionado.banco}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Fonte</label>
                     <p className="text-sm text-gray-900">{clienteSelecionado.fonte}</p>
                   </div>
                 </div>
@@ -1059,11 +1056,39 @@ export default function ClientesPage() {
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Informações de Contato</h4>
                   
                   <div className="space-y-3">
->>>>>>> a9e334e (Corrigir separaÃ§Ã£o por ano dos clientes nos filtros de data)
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Cliente</label>
-                      <p className="text-sm text-gray-900">{clienteSelecionado.cliente}</p>
+                      <label className="text-sm font-medium text-gray-700">CPF</label>
+                      {clienteSelecionado.cpf ? (
+                        <p className="text-sm text-gray-900">{clienteSelecionado.cpf}</p>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">Não informado</p>
+                      )}
                     </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Telefone</label>
+                      {clienteSelecionado.telefone ? (
+                        <p className="text-sm text-gray-900">{clienteSelecionado.telefone}</p>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">Não informado</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {clienteSelecionado.observacoes && (
+                  <div className="border-t pt-4">
+                    <label className="text-sm font-medium text-gray-700">Observações</label>
+                    <p className="text-sm text-gray-900 mt-1">{clienteSelecionado.observacoes}</p>
+                  </div>
+                )}
+              )}
+            </DialogContent>
+          </Dialog>
+        </SidebarLayout>
+      </ProtectedLayout>
+    );
+}
                     <div>
                       <label className="text-sm font-medium text-gray-700">Produto</label>
                       <p className="text-sm text-gray-900">{clienteSelecionado.produto}</p>

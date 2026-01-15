@@ -1072,7 +1072,6 @@ export default function AdminClientesPage() {
                                 : new Date(cliente.data + 'T00:00:00').toLocaleDateString("pt-BR")}
                             </TableCell>
                             <TableCell>
-<<<<<<< HEAD
                               {cliente.data_previsao_pagamento ? (
                                 <span className="text-sm text-blue-600 font-medium">
                                   {new Date(cliente.data_previsao_pagamento + 'T00:00:00').toLocaleDateString("pt-BR")}
