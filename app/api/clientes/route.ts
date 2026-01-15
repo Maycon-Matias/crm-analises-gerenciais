@@ -135,9 +135,10 @@ export async function POST(req: NextRequest) {
 
     const result = await collection.insertOne(body);
 
-    // CORREÇÃO: Limpar apenas caches específicos em vez de todos
+    // CORREÇÃO: Limpar TODOS os caches de clientes após inserção
     clearSpecificClientesCache();
-    console.log("🗑️ Caches específicos de clientes limpos após inserção");
+    clearCache();
+    console.log("🗑️ Todos os caches de clientes limpos após inserção");
 
     // Disparar webhook para cliente criado
     const clienteComId = { ...body, id: result.insertedId.toString() };
