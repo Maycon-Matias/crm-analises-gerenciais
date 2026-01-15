@@ -25,7 +25,8 @@ export default [
     ignores: [
       "scripts/**",
       "**/debug-*.js",
-      "debug-clientes.js"
+      "debug-clientes.js",
+      "**/*.config.js"
     ],
     languageOptions: {
       parser: tsParser,
@@ -36,6 +37,13 @@ export default [
           jsx: true,
         },
         project: ["./tsconfig.json"],
+      },
+      globals: {
+        require: "readonly",
+        module: "readonly",
+        exports: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly",
       },
     },
     plugins: {
@@ -54,6 +62,7 @@ export default [
       '@typescript-eslint/no-unused-vars': ['warn', { 'argsIgnorePattern': '^_' }],
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       'jsx-a11y/anchor-is-valid': 'warn',
+      'no-undef': 'off', // Desabilitar verificação de variáveis não definidas para evitar problemas com require()
     },
     settings: {
       react: {
