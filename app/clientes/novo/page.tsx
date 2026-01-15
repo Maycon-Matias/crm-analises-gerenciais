@@ -31,7 +31,7 @@ import type { Cliente } from "@/types/cliente";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle, AlertTriangle, Info, User, DollarSign, Calendar, Building, Source } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { getDataAtualFormatada, getDataAtualSemFusoHorario, debugDataAtual } from "@/lib/utils";
+import { getDataAtualSemFusoHorario } from "@/lib/utils";
 import { getTodasFontes } from "@/lib/fontes-config";
 
 // Função para obter o mês atual em português
