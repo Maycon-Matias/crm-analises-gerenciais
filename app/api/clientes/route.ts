@@ -135,10 +135,15 @@ export async function POST(req: NextRequest) {
 
     const result = await collection.insertOne(body);
 
-    // CORREÇÃO: Limpar TODOS os caches de clientes após inserção
+    // Verificar se a inserção foi bem-sucedida
+    if (!result.insertedId) {
+      return NextResponse.json({ error: "Erro ao inserir cliente no banco" }, { status: 500 });
+    }
+
+    // CORREÇÃO: Limpar TODOS os caches de clientes após inserção confirmada
     clearSpecificClientesCache();
     clearCache();
-    console.log("🗑️ Todos os caches de clientes limpos após inserção");
+    console.log("🗑️ Todos os caches de clientes limpos após inserção confirmada");
 
     // Disparar webhook para cliente criado
     const clienteComId = { ...body, id: result.insertedId.toString() };
@@ -183,10 +188,15 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }
 
-    // CORREÇÃO: Limpar TODOS os caches de clientes após atualização
+    // Verificar se a atualização foi confirmada
+    if (result.modifiedCount === 0 && result.matchedCount > 0) {
+      console.log("⚠️ Cliente encontrado mas não foi modificado (dados idênticos)");
+    }
+
+    // CORREÇÃO: Limpar TODOS os caches de clientes após atualização confirmada
     clearSpecificClientesCache();
     clearCache();
-    console.log("🗑️ Todos os caches de clientes limpos após atualização");
+    console.log("🗑️ Todos os caches de clientes limpos após atualização confirmada");
 
     // Disparar webhook para cliente atualizado
     const clienteAtualizado = { ...clienteAtual, ...dadosAtualizados, id };
@@ -226,10 +236,15 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }
 
-    // CORREÇÃO: Limpar TODOS os caches de clientes após exclusão
+    // Verificar se a exclusão foi confirmada
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ error: "Erro ao excluir cliente" }, { status: 500 });
+    }
+
+    // CORREÇÃO: Limpar TODOS os caches de clientes após exclusão confirmada
     clearSpecificClientesCache();
     clearCache();
-    console.log("🗑️ Todos os caches de clientes limpos após exclusão");
+    console.log("🗑️ Todos os caches de clientes limpos após exclusão confirmada");
 
     // Disparar webhook para cliente excluído
     await dispararWebhooks("cliente.excluido", { id, ...clienteAtual });
