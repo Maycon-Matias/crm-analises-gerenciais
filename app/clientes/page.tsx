@@ -918,9 +918,10 @@ export default function ClientesPage() {
               )}
             </CardContent>
           </Card>
+        </div>
 
-          {/* Modal de Detalhes do Cliente */}
-          <Dialog open={modalAberto} onOpenChange={setModalAberto}>
+        {/* Modal de Detalhes do Cliente */}
+        <Dialog open={modalAberto} onOpenChange={setModalAberto}>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Detalhes do Cliente</DialogTitle>
