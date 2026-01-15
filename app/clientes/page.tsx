@@ -951,9 +951,8 @@ export default function ClientesPage() {
                       <p className="text-sm text-gray-900">{clienteSelecionado.fonte}</p>
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-700">Valor</label>
                     <p className="text-sm text-gray-900">
@@ -1032,6 +1031,7 @@ export default function ClientesPage() {
                     <p className="text-sm text-gray-900 mt-1">{clienteSelecionado.observacoes}</p>
                   </div>
                 )}
+                </div>
               )}
             </DialogContent>
           </Dialog>
