@@ -18,6 +18,7 @@ import { Edit, PlusCircle, Search, Trash2, Filter, X, Eye } from "lucide-react";
 import { getPercentualMeta, isFonteCorretor } from "@/lib/fontes-config";
 import { useClientes } from "@/hooks/use-clientes";
 import { useAuth } from "@/hooks/use-auth";
+import { debugLog } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProtectedLayout } from "@/components/protected-layout";
 import { SidebarLayout } from "@/components/sidebar-layout";
@@ -30,7 +31,7 @@ import {
 } from "@/components/ui/dialog";
 
 export default function ClientesPage() {
-  console.log("🚀 Componente ClientesPage sendo renderizado");
+  debugLog("🚀 Componente ClientesPage sendo renderizado");
   
   const { clientes, removerCliente, exportarParaCSV, exportarParaHTML, exportarClientesComPrevisao } = useClientes();
   const { user } = useAuth();
@@ -145,11 +146,11 @@ export default function ClientesPage() {
     }
   }, [mostrarFiltrosAvancados]);
 
-  // DEBUG: Monitorar quando clientes são carregados
+  // DEBUG: Monitorar quando clientes são carregados (apenas em desenvolvimento)
   useEffect(() => {
-    console.log("📥 Clientes carregados:", clientes.length);
+    debugLog("📥 Clientes carregados:", clientes.length);
     if (clientes.length > 0) {
-      console.log("🔍 Primeiro cliente:", clientes[0]);
+      debugLog("🔍 Primeiro cliente:", clientes[0]);
     }
   }, [clientes]);
 
@@ -223,8 +224,8 @@ export default function ClientesPage() {
     
     const busca = termoBusca.toLowerCase().trim();
     
-    // DEBUG: Log detalhado para cada cliente
-    console.log("🔍 Verificando cliente:", {
+    // DEBUG: Log detalhado para cada cliente (apenas em desenvolvimento)
+    debugLog("🔍 Verificando cliente:", {
       nome: cliente.cliente,
       busca: busca,
       temCliente: !!cliente.cliente,
@@ -267,19 +268,19 @@ export default function ClientesPage() {
     console.log("📊 Total de clientes filtrados:", clientesFiltrados.length);
   }, [busca, clientesFiltrados.length]);
 
-  // DEBUG: Monitorar carregamento de clientes
+  // DEBUG: Monitorar carregamento de clientes (apenas em desenvolvimento)
   useEffect(() => {
-    console.log("👤 Usuário atual:", user);
-    console.log("📋 Total de clientes carregados:", clientes.length);
-    console.log("🔍 Clientes filtrados:", clientesFiltrados.length);
-    console.log("👥 É admin?", isAdmin);
+    debugLog("👤 Usuário atual:", user);
+    debugLog("📋 Total de clientes carregados:", clientes.length);
+    debugLog("🔍 Clientes filtrados:", clientesFiltrados.length);
+    debugLog("👥 É admin?", isAdmin);
     
     if (clientes.length > 0) {
-      console.log("📝 Primeiro cliente:", clientes[0]);
-      console.log("🏷️ Clientes por criador:", clientes.map(c => ({ cliente: c.cliente, criadoPor: c.criadoPor })));
+      debugLog("📝 Primeiro cliente:", clientes[0]);
+      debugLog("🏷️ Clientes por criador:", clientes.map(c => ({ cliente: c.cliente, criadoPor: c.criadoPor })));
       
       // Debug específico para comparação de IDs
-      console.log("🔍 Debug IDs:", {
+      debugLog("🔍 Debug IDs:", {
         userId: user?.id,
         userType: typeof user?.id,
         primeiroClienteCriadoPor: clientes[0].criadoPor,

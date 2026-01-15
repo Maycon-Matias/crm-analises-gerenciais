@@ -5,6 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Helper para logs condicionais (apenas em desenvolvimento)
+export function debugLog(...args: any[]): void {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(...args);
+  }
+}
+
 /**
  * Formata uma data de forma robusta, lidando com diferentes formatos
  * @param dataString - String da data (pode ser ISO, timestamp, etc.)
@@ -184,13 +191,7 @@ export function getDataAtualSemFusoHorario(): string {
   // Criar data usando UTC para evitar problemas de fuso horário
   const agora = new Date();
   
-  // Debug: Log das datas para verificar o problema
-  console.log("🔍 Debug de datas:");
-  console.log("  - Data atual (new Date()):", agora);
-  console.log("  - Fuso horário:", Intl.DateTimeFormat().resolvedOptions().timeZone);
-  console.log("  - Offset em minutos:", agora.getTimezoneOffset());
-  
-  // Método 1: Usar toLocaleDateString com timezone local
+  // Usar toLocaleDateString com timezone local
   const dataLocal = agora.toLocaleDateString('pt-BR', {
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     year: 'numeric',
@@ -198,19 +199,17 @@ export function getDataAtualSemFusoHorario(): string {
     day: '2-digit'
   });
   
-  console.log("  - Data local (pt-BR):", dataLocal);
-  
   // Converter de DD/MM/YYYY para YYYY-MM-DD
   const [dia, mes, ano] = dataLocal.split('/');
   const dataFormatada = `${ano}-${mes}-${dia}`;
   
-  console.log("  - Data formatada (YYYY-MM-DD):", dataFormatada);
-  
   return dataFormatada;
 }
 
-// Função de debug para verificar datas
+// Função de debug para verificar datas (apenas em desenvolvimento)
 export function debugDataAtual(): void {
+  if (process.env.NODE_ENV !== 'development') return;
+  
   const agora = new Date();
   const utc = new Date(agora.getTime() + (agora.getTimezoneOffset() * 60000));
   

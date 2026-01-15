@@ -56,9 +56,6 @@ function getMesAtual() {
 
 // Função para formatar a data atual como YYYY-MM-DD (usando método mais robusto)
 function getDataAtual() {
-  // Debug: Verificar as datas
-  debugDataAtual();
-  
   // Usar a função mais robusta que considera fuso horário local
   return getDataAtualSemFusoHorario();
 }
