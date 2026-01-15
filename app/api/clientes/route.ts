@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { dispararWebhooks } from "@/lib/webhook";
-import { getCache, setCache, deleteCache } from "@/lib/cache";
+import { getCache, setCache, deleteCache, clearCache, getCacheStats } from "@/lib/cache";
 
 // GET - Listar clientes com paginação
 export async function GET(req: NextRequest) {
@@ -182,9 +182,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }
 
-    // CORREÇÃO: Limpar apenas caches específicos em vez de todos
+    // CORREÇÃO: Limpar TODOS os caches de clientes após atualização
     clearSpecificClientesCache();
-    console.log("🗑️ Caches específicos de clientes limpos após atualização");
+    clearCache();
+    console.log("🗑️ Todos os caches de clientes limpos após atualização");
 
     // Disparar webhook para cliente atualizado
     const clienteAtualizado = { ...clienteAtual, ...dadosAtualizados, id };
@@ -224,9 +225,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }
 
-    // CORREÇÃO: Limpar apenas caches específicos em vez de todos
+    // CORREÇÃO: Limpar TODOS os caches de clientes após exclusão
     clearSpecificClientesCache();
-    console.log("🗑️ Caches específicos de clientes limpos após exclusão");
+    clearCache();
+    console.log("🗑️ Todos os caches de clientes limpos após exclusão");
 
     // Disparar webhook para cliente excluído
     await dispararWebhooks("cliente.excluido", { id, ...clienteAtual });
@@ -238,24 +240,37 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
-// CORREÇÃO: Função otimizada para limpar apenas caches específicos
+// CORREÇÃO: Função para limpar TODOS os caches de clientes
 function clearSpecificClientesCache() {
   // Limpar cache de todos os clientes (mais importante)
   deleteCache("clientes-todos");
   
-  // Limpar apenas caches paginados básicos (não todos)
-  const paginasPrincipais = [1, 2, 3]; // Apenas primeiras páginas
-  const limitesPrincipais = [10, 25, 50]; // Limites mais usados
+  // Limpar caches paginados mais comuns (expandido)
+  const paginas = [1, 2, 3, 4, 5]; // Mais páginas
+  const limites = [10, 25, 50, 100]; // Todos os limites
+  const ordenacoes = ["asc", "desc"]; // Ambas ordenações
+  const campos = ["data", "cliente", "valor"]; // Todos os campos
+  const statusOptions = ["all", "pago", "pendente", "cancelado"]; // Todos os status
+  const mesOptions = ["all", "todos"]; // Opções de mês
   
-  for (let p of paginasPrincipais) {
-    for (let l of limitesPrincipais) {
-      for (let o of ["desc"]) { // Apenas ordenação padrão
-        for (let c of ["data"]) { // Apenas campo padrão
-          deleteCache(`clientes-${p}-${l}-${o}-${c}-all-all-all`);
+  let cleared = 0;
+  for (let p of paginas) {
+    for (let l of limites) {
+      for (let o of ordenacoes) {
+        for (let c of campos) {
+          for (let status of statusOptions) {
+            for (let mes of mesOptions) {
+              for (let usuario of ["all", "todos"]) {
+                if (deleteCache(`clientes-${p}-${l}-${o}-${c}-${status}-${mes}-${usuario}`)) {
+                  cleared++;
+                }
+              }
+            }
+          }
         }
       }
     }
   }
   
-  console.log("🧹 Cache limpo de forma inteligente");
+  console.log(`🧹 Cache limpo: ${cleared} entradas de clientes removidas`);
 }

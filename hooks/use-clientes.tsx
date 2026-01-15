@@ -173,9 +173,12 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
       throw new Error(erro.error || "Erro ao cadastrar cliente.");
     }
 
-    // CORREÇÃO: Atualizar estado local em vez de refetch completo
+    // CORREÇÃO: Refetch completo para garantir sincronização com o banco
     const clienteComId = await res.json();
-    setClientes(prev => [...prev, { ...novoCliente, id: clienteComId.id }]);
+    // Aguardar um pouco para garantir que o banco processou
+    await new Promise(resolve => setTimeout(resolve, 500));
+    // Refetch para garantir que os dados estão sincronizados
+    await refetchClientes();
   };
 
   const atualizarCliente = async (cliente: Cliente) => {
@@ -201,8 +204,9 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
       throw new Error(erro.error || "Erro ao atualizar cliente.");
     }
 
-    // Atualizar estado local
-    setClientes(prev => prev.map(c => c.id === cliente.id ? cliente : c));
+    // CORREÇÃO: Refetch completo para garantir sincronização
+    await new Promise(resolve => setTimeout(resolve, 500));
+    await refetchClientes();
   };
 
   const removerCliente = async (id: string) => {
@@ -227,8 +231,9 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
       throw new Error(erro.error || "Erro ao remover cliente.");
     }
 
-    // Remover do estado local
-    setClientes(prev => prev.filter(c => c.id !== id));
+    // CORREÇÃO: Refetch completo para garantir sincronização
+    await new Promise(resolve => setTimeout(resolve, 500));
+    await refetchClientes();
   };
 
   const marcarComoPago = async (id: string, data_pagamento: string) => {

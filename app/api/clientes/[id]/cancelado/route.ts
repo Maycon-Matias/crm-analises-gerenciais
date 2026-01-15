@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { clearCache } from "@/lib/cache";
 
 // PUT - Marcar como cancelado
 export async function PUT(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -18,6 +19,10 @@ export async function PUT(_req: NextRequest, { params }: { params: Promise<{ id:
     if (result.matchedCount === 0) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }
+
+    // Limpar cache após atualização
+    clearCache();
+    console.log("🗑️ Cache limpo após marcar cliente como cancelado");
 
     return NextResponse.json({ ok: true });
   } catch (error) {
