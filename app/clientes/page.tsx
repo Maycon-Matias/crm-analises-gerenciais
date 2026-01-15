@@ -260,57 +260,6 @@ export default function ClientesPage() {
     return false;
   };
 
-  // Filtragem SIMPLIFICADA
-  const clientesFiltrados = clientes.filter((cliente) => {
-    // DEBUG: Log para ver quantos clientes estão sendo processados
-    if (busca && busca.trim() !== '') {
-      console.log("🔍 Processando cliente:", cliente.cliente, "| Total de clientes:", clientes.length);
-    }
-    
-    // 1. Verificar se pertence ao usuário (SIMPLIFICADO PARA TESTE)
-    let pertenceAoUsuario = true;
-    if (!isAdmin) {
-      // Teste de comparação mais detalhado
-      const comparacao = cliente.criadoPor === user?.id;
-      console.log(`🔍 Cliente ${cliente.cliente}:`, {
-        criadoPor: cliente.criadoPor,
-        userId: user?.id,
-        comparacao,
-        tipoCriadoPor: typeof cliente.criadoPor,
-        tipoUserId: typeof user?.id
-      });
-      
-      pertenceAoUsuario = comparacao;
-    }
-    
-    if (!pertenceAoUsuario) {
-      console.log(`❌ Cliente ${cliente.cliente} não pertence ao usuário ${user?.id}. CriadoPor: ${cliente.criadoPor}`);
-      return false;
-    }
-    console.log(`✅ Cliente ${cliente.cliente} pertence ao usuário ${user?.id}`);
-    
-    // 2. Verificar busca
-    const buscaMatch = buscarCliente(cliente, busca);
-    if (!buscaMatch) return false;
-    
-    // 3. Verificar outros filtros
-    if (statusFiltro !== "todos" && cliente.status !== statusFiltro) return false;
-    if (mesFiltro !== "todos" && cliente.mes !== mesFiltro) return false;
-    if (dataEspecifica && cliente.data !== dataEspecifica) return false;
-    if (dataPagamentoEspecifica && (!cliente.data_pagamento || cliente.data_pagamento !== dataPagamentoEspecifica)) return false;
-    if (mesPagamentoFiltro !== "todos" && (!cliente.data_pagamento || new Date(cliente.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' }) !== mesPagamentoFiltro)) return false;
-    if (usuarioFiltro !== "todos" && cliente.usuarios !== usuarioFiltro) return false;
-    if (fonteFiltro !== "todos" && cliente.fonte !== fonteFiltro) return false;
-    if (tipoFonteFiltro !== "todos") {
-      if (tipoFonteFiltro === "principal") {
-        // Incluir fontes principais E corretores (que contam 50% para metas)
-        return true; // Todos os clientes passam quando filtro é "principal"
-      }
-      if (tipoFonteFiltro === "corretor" && !cliente.fonte.includes("Corretor")) return false;
-    }
-    
-    return true;
-  });
 
   // DEBUG: Monitorar mudanças na busca (movido para depois da declaração)
   useEffect(() => {
@@ -999,7 +948,8 @@ export default function ClientesPage() {
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-700">Fonte</label>
-                    <p className="text-sm text-gray-900">{clienteSelecionado.fonte}</p>
+                      <p className="text-sm text-gray-900">{clienteSelecionado.fonte}</p>
+                    </div>
                   </div>
                 </div>
 
@@ -1088,58 +1038,4 @@ export default function ClientesPage() {
         </SidebarLayout>
       </ProtectedLayout>
     );
-}
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Produto</label>
-                      <p className="text-sm text-gray-900">{clienteSelecionado.produto}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Banco</label>
-                      <p className="text-sm text-gray-900">{clienteSelecionado.banco}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Valor</label>
-                      <p className="text-sm text-gray-900">{clienteSelecionado.valor}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Status</label>
-                      <p className="text-sm text-gray-900">{clienteSelecionado.status}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Data</label>
-                      <p className="text-sm text-gray-900">{clienteSelecionado.data}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Mês</label>
-                      <p className="text-sm text-gray-900">{clienteSelecionado.mes}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Fonte</label>
-                      <p className="text-sm text-gray-900">{clienteSelecionado.fonte}</p>
-                    </div>
-                    {podeVerDadosSensiveis(clienteSelecionado) && (
-                      <>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">CPF</label>
-                          <p className="text-sm text-gray-900">{clienteSelecionado.cpf || "-"}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Telefone</label>
-                          <p className="text-sm text-gray-900">{clienteSelecionado.telefone || "-"}</p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Observações</label>
-                    <p className="text-sm text-gray-900">{clienteSelecionado.observacoes || "Nenhuma observação"}</p>
-                  </div>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
-        </div>
-      </SidebarLayout>
-    </ProtectedLayout>
-  );
 }
