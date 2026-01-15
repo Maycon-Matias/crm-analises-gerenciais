@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { clearCache } from "@/lib/cache";
 
 // GET - Obter um cliente por ID
 export async function GET(
@@ -65,6 +66,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }
 
+    // Limpar cache após atualização
+    clearCache();
+    console.log("🗑️ Cache limpo após atualizar cliente");
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Erro ao atualizar cliente:", error);
@@ -84,6 +89,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }
+
+    // Limpar cache após exclusão
+    clearCache();
+    console.log("🗑️ Cache limpo após excluir cliente");
 
     return NextResponse.json({ ok: true });
   } catch (error) {
