@@ -1,15 +1,15 @@
-// Script para verificar clientes da Mariele e entender por que não estão sendo contados
+// Script para verificar clientes da Patricia e entender por que não estão sendo contados
 const { MongoClient } = require('mongodb');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://admin:admin123@poracred.lep058a.mongodb.net/?retryWrites=true&w=majority&appName=PoraCred';
 const DB_NAME = 'crm';
 const COLLECTION_NAME = 'clientes';
 
-async function verificarClientesMariele() {
+async function verificarClientesPatricia() {
   let client;
   
   try {
-    console.log('🔍 Verificando clientes da Mariele...');
+    console.log('🔍 Verificando clientes da Patricia...');
     
     // Conectar ao MongoDB
     client = new MongoClient(MONGODB_URI);
@@ -19,22 +19,22 @@ async function verificarClientesMariele() {
     const db = client.db(DB_NAME);
     const collection = db.collection(COLLECTION_NAME);
     
-    // Buscar clientes da Mariele
-    const clientesMariele = await collection.find({
+    // Buscar clientes da Patricia
+    const clientesPatricia = await collection.find({
       $or: [
-        { usuarios: "mariele" },
-        { criadoPor: "mariele" },
-        { criadoPor: { $regex: /mariele/i } }
+        { usuarios: "patricia" },
+        { criadoPor: "patricia" },
+        { criadoPor: { $regex: /patricia/i } }
       ]
     }).toArray();
     
-    console.log(`📊 Total de clientes da Mariele: ${clientesMariele.length}`);
+    console.log(`📊 Total de clientes da Patricia: ${clientesPatricia.length}`);
     
-    if (clientesMariele.length > 0) {
-      console.log('\n📋 DETALHES DOS CLIENTES DA MARIELE:');
+    if (clientesPatricia.length > 0) {
+      console.log('\n📋 DETALHES DOS CLIENTES DA PATRICIA:');
       console.log('============================================================');
       
-      clientesMariele.forEach((cliente, index) => {
+      clientesPatricia.forEach((cliente, index) => {
         console.log(`${index + 1}. ${cliente.cliente}`);
         console.log(`   Produto: ${cliente.produto}`);
         console.log(`   Banco: ${cliente.banco}`);
@@ -49,13 +49,13 @@ async function verificarClientesMariele() {
       });
       
       // Verificar fontes principais vs corretores
-      const fontesPrincipais = clientesMariele.filter(c => 
+      const fontesPrincipais = clientesPatricia.filter(c => 
         !c.fonte.includes('Corretor') && 
         !c.fonte.includes('Indicação') &&
         !c.fonte.includes('RO')
       );
       
-      const fontesCorretor = clientesMariele.filter(c => 
+      const fontesCorretor = clientesPatricia.filter(c => 
         c.fonte.includes('Corretor') || 
         c.fonte.includes('Indicação') ||
         c.fonte.includes('RO')
@@ -66,11 +66,11 @@ async function verificarClientesMariele() {
       console.log(`   Fontes Corretor: ${fontesCorretor.length} clientes`);
       
       // Verificar clientes pagos
-      const clientesPagos = clientesMariele.filter(c => c.status === 'pago');
+      const clientesPagos = clientesPatricia.filter(c => c.status === 'pago');
       console.log(`   Clientes Pagos: ${clientesPagos.length} clientes`);
       
       // Verificar valores
-      const valorTotal = clientesMariele.reduce((acc, c) => {
+      const valorTotal = clientesPatricia.reduce((acc, c) => {
         const valor = Number.parseFloat(
           c.valor
             .replace("R$", "")
@@ -84,7 +84,7 @@ async function verificarClientesMariele() {
       console.log(`   Valor Total: R$ ${valorTotal.toLocaleString('pt-BR')}`);
       
     } else {
-      console.log('❌ Nenhum cliente encontrado para a Mariele');
+      console.log('❌ Nenhum cliente encontrado para a Patricia');
       
       // Verificar se há clientes com outros nomes similares
       const todosClientes = await collection.find({}).toArray();
@@ -105,4 +105,4 @@ async function verificarClientesMariele() {
   }
 }
 
-verificarClientesMariele();
+verificarClientesPatricia();

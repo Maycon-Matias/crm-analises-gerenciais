@@ -364,11 +364,11 @@ export default function ConfiguracoesPage() {
                     <div className="space-y-3">
                       {[
                         { id: "1", nome: "Maycon", email: "admin@poracred.com", role: "admin", status: "ativo" },
-                        { id: "2", nome: "Amanda", email: "amanda@poracred.com", role: "user", status: "ativo" },
-                        { id: "3", nome: "Adriana", email: "adriana@poracred.com", role: "user", status: "ativo" },
-                        { id: "4", nome: "Lais", email: "lais@poracred.com", role: "user", status: "ativo" },
+                        { id: "2", nome: "Beatriz", email: "beatriz@poracred.com", role: "user", status: "ativo" },
+                        { id: "3", nome: "Camila", email: "camila@poracred.com", role: "user", status: "ativo" },
+                        { id: "4", nome: "Fernanda", email: "fernanda@poracred.com", role: "user", status: "ativo" },
                         { id: "5", nome: "Ana", email: "ana@poracred.com", role: "user", status: "ativo" },
-                        { id: "6", nome: "Mariele", email: "mariele@poracred.com", role: "user", status: "ativo" },
+                        { id: "6", nome: "Patricia", email: "patricia@poracred.com", role: "user", status: "ativo" },
                       ].map((usuario) => (
                         <div key={usuario.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div className="flex items-center gap-3">

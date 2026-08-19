@@ -75,7 +75,7 @@ export const configuracaoPadrao: ConfiguracaoSistema = {
     produtos: ["Margem", "Cartão", "Portabilidade"],
     bancos: ["Porã Cred", "BMG", "Bradesco", "Zelicred"],
     fontes: ["Balcão", "Rede Social", "Indicação"],
-    usuarios: ["Amanda", "Lais", "Carlos"],
+    usuarios: ["Beatriz", "Fernanda", "Diego"],
   },
   configuracaoImportacao: {
     mapeamentoCampos: {},

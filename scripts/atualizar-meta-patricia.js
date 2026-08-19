@@ -1,14 +1,14 @@
-// Script para atualizar a meta da Mariele para o período correto
+// Script para atualizar a meta da Patricia para o período correto
 const { MongoClient } = require('mongodb');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://admin:admin123@poracred.lep058a.mongodb.net/?retryWrites=true&w=majority&appName=PoraCred';
 const DB_NAME = 'crm';
 
-async function atualizarMetaMariele() {
+async function atualizarMetaPatricia() {
   let client;
   
   try {
-    console.log('🔄 Atualizando meta da Mariele...');
+    console.log('🔄 Atualizando meta da Patricia...');
     
     // Conectar ao MongoDB
     client = new MongoClient(MONGODB_URI);
@@ -18,10 +18,10 @@ async function atualizarMetaMariele() {
     const db = client.db(DB_NAME);
     const metasCollection = db.collection('metas');
     
-    // Buscar meta atual da Mariele
-    const metaAtual = await metasCollection.findOne({ usuario: "Mariele" });
+    // Buscar meta atual da Patricia
+    const metaAtual = await metasCollection.findOne({ usuario: "Patricia" });
     if (!metaAtual) {
-      console.log('❌ Meta da Mariele não encontrada');
+      console.log('❌ Meta da Patricia não encontrada');
       return;
     }
     
@@ -46,7 +46,7 @@ async function atualizarMetaMariele() {
       console.log('   Novo período: Abril 2025');
       
       // Verificar meta atualizada
-      const metaAtualizada = await metasCollection.findOne({ usuario: "Mariele" });
+      const metaAtualizada = await metasCollection.findOne({ usuario: "Patricia" });
       console.log(`\n📋 META ATUALIZADA:`);
       console.log(`   Usuário: ${metaAtualizada.usuario}`);
       console.log(`   Período: ${metaAtualizada.mes} ${metaAtualizada.ano}`);
@@ -54,7 +54,7 @@ async function atualizarMetaMariele() {
       
       // Calcular progresso esperado
       const valorMeta = metaAtualizada.valorMeta; // R$ 120.000
-      const valorVendido = 163314.37; // Valor total das vendas da Mariele
+      const valorVendido = 163314.37; // Valor total das vendas da Patricia
       const progresso = (valorVendido / valorMeta) * 100;
       
       console.log(`\n🎯 PROGRESSO ESPERADO:`);
@@ -77,4 +77,4 @@ async function atualizarMetaMariele() {
   }
 }
 
-atualizarMetaMariele();
+atualizarMetaPatricia();

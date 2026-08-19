@@ -44,27 +44,27 @@ async function testarCalculoProgresso() {
     const clientesCollection = db.collection('clientes');
     const metasCollection = db.collection('metas');
     
-    // Buscar meta da Mariele
-    const metaMariele = await metasCollection.findOne({ usuario: "Mariele" });
-    if (!metaMariele) {
-      console.log('❌ Meta da Mariele não encontrada');
+    // Buscar meta da Patricia
+    const metaPatricia = await metasCollection.findOne({ usuario: "Patricia" });
+    if (!metaPatricia) {
+      console.log('❌ Meta da Patricia não encontrada');
       return;
     }
     
-    console.log(`\n🎯 META DA MARIELE:`);
-    console.log(`   Usuário: ${metaMariele.usuario}`);
-    console.log(`   Período: ${metaMariele.mes} ${metaMariele.ano}`);
-    console.log(`   Valor da Meta: R$ ${metaMariele.valorMeta.toLocaleString('pt-BR')}`);
+    console.log(`\n🎯 META DA PATRICIA:`);
+    console.log(`   Usuário: ${metaPatricia.usuario}`);
+    console.log(`   Período: ${metaPatricia.mes} ${metaPatricia.ano}`);
+    console.log(`   Valor da Meta: R$ ${metaPatricia.valorMeta.toLocaleString('pt-BR')}`);
     
-    // Buscar clientes da Mariele
-    const clientesMariele = await clientesCollection.find({
-      usuarios: "mariele"
+    // Buscar clientes da Patricia
+    const clientesPatricia = await clientesCollection.find({
+      usuarios: "patricia"
     }).toArray();
     
-    console.log(`\n📊 CLIENTES DA MARIELE: ${clientesMariele.length}`);
+    console.log(`\n📊 CLIENTES DA PATRICIA: ${clientesPatricia.length}`);
     
     // Filtrar por período (Abril 2025)
-    const clientesDoMes = clientesMariele.filter(cliente => {
+    const clientesDoMes = clientesPatricia.filter(cliente => {
       // Para clientes PAGOS: usar data_pagamento se disponível
       if (cliente.status === "pago" && cliente.data_pagamento) {
         const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
@@ -120,19 +120,19 @@ async function testarCalculoProgresso() {
       console.log(`💵 VALOR TOTAL VENDIDO: R$ ${valorTotal.toLocaleString('pt-BR')}`);
       
       // Calcular progresso
-      const percentualAlcancado = (valorTotal / metaMariele.valorMeta) * 100;
+      const percentualAlcancado = (valorTotal / metaPatricia.valorMeta) * 100;
       console.log(`📊 PROGRESSO: ${percentualAlcancado.toFixed(1)}%`);
-      console.log(`🎯 META: R$ ${metaMariele.valorMeta.toLocaleString('pt-BR')}`);
-      console.log(`✅ FALTAM: R$ ${(metaMariele.valorMeta - valorTotal).toLocaleString('pt-BR')}`);
+      console.log(`🎯 META: R$ ${metaPatricia.valorMeta.toLocaleString('pt-BR')}`);
+      console.log(`✅ FALTAM: R$ ${(metaPatricia.valorMeta - valorTotal).toLocaleString('pt-BR')}`);
       
     } else {
       console.log('❌ Nenhum cliente encontrado para Abril 2025');
       
       // Verificar datas dos clientes
-      const datasUnicas = [...new Set(clientesMariele.map(c => c.data))];
+      const datasUnicas = [...new Set(clientesPatricia.map(c => c.data))];
       console.log('\n📅 Datas encontradas nos clientes:', datasUnicas.slice(0, 10));
       
-      const mesesUnicos = [...new Set(clientesMariele.map(c => {
+      const mesesUnicos = [...new Set(clientesPatricia.map(c => {
         const data = new Date(c.data + 'T00:00:00');
         return data.toLocaleDateString("pt-BR", { month: "long" });
       }))];

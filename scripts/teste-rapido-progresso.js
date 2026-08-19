@@ -17,24 +17,24 @@ function isFontePrincipal(fonte) {
   return fonteConfig ? fonteConfig.categoria === 'principal' : false;
 }
 
-// Simular dados da Mariele
-const clientesMariele = [
+// Simular dados da Patricia
+const clientesPatricia = [
   {
-    usuarios: "mariele",
+    usuarios: "patricia",
     fonte: "URA",
     status: "pago",
     data_pagamento: "2025-04-08",
     valor: "R$ 1.358,02"
   },
   {
-    usuarios: "mariele",
+    usuarios: "patricia",
     fonte: "Rede Social",
     status: "pago",
     data_pagamento: "2025-04-24",
     valor: "R$ 683,30"
   },
   {
-    usuarios: "mariele",
+    usuarios: "patricia",
     fonte: "Corretor(TI)", // Fonte de corretor - não deve contar
     status: "pago",
     data_pagamento: "2025-04-09",
@@ -44,7 +44,7 @@ const clientesMariele = [
 
 // Simular meta
 const meta = {
-  usuario: "Mariele",
+  usuario: "Patricia",
   mes: "Abril",
   ano: 2025,
   valorMeta: 120000
@@ -52,7 +52,7 @@ const meta = {
 
 // Testar função de cálculo
 function calcularProgressoMeta(meta) {
-  const vendasUsuario = clientesMariele.filter((cliente) => {
+  const vendasUsuario = clientesPatricia.filter((cliente) => {
     // Filtrar apenas clientes de fontes principais (não corretores)
     if (!isFontePrincipal(cliente.fonte)) {
       return false;

@@ -230,9 +230,9 @@ export default function PrevisoesPagamentoPage() {
                       </SelectTrigger>
                                              <SelectContent>
                          <SelectItem value="todos">Todos os usuários</SelectItem>
-                         <SelectItem value="Amanda">Amanda</SelectItem>
-                         <SelectItem value="Lais">Lais</SelectItem>
-                         <SelectItem value="Carlos">Carlos</SelectItem>
+                         <SelectItem value="Beatriz">Beatriz</SelectItem>
+                         <SelectItem value="Fernanda">Fernanda</SelectItem>
+                         <SelectItem value="Diego">Diego</SelectItem>
                          <SelectItem value="Ana">Ana</SelectItem>
                        </SelectContent>
                     </Select>

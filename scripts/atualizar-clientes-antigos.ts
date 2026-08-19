@@ -5,9 +5,9 @@ const DB_PATH = path.join(process.cwd(), 'data', 'clientes.json');
 
 const nomeParaId: Record<string, string> = {
   'Maycon': '1',
-  'Amanda': '2',
-  'Adriana': '3',
-  'Lais': '4',
+  'Beatriz': '2',
+  'Camila': '3',
+  'Fernanda': '4',
   'Ana': '5',
 };
 

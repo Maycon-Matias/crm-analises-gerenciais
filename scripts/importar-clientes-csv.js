@@ -8,11 +8,11 @@ const jsonPath = path.join(__dirname, '../data/clientes.json');
 
 // Mapeamento de nomes de usuário para IDs
 const vendedorIds = {
-  amanda: '2',
-  adriana: '3',
-  lais: '4',
+  beatriz: '2',
+  camila: '3',
+  fernanda: '4',
   ana: '5',
-  mariele: '6',
+  patricia: '6',
 };
 
 const results = [];

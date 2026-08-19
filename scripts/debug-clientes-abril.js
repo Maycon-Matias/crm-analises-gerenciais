@@ -1,4 +1,4 @@
-// Script para debugar clientes de Abril 2025 da Mariele
+// Script para debugar clientes de Abril 2025 da Patricia
 const { MongoClient } = require('mongodb');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://admin:admin123@poracred.lep058a.mongodb.net/?retryWrites=true&w=majority&appName=PoraCred';
@@ -8,7 +8,7 @@ async function debugClientesAbril() {
   let client;
   
   try {
-    console.log('🔍 Debugando clientes de Abril 2025 da Mariele...');
+    console.log('🔍 Debugando clientes de Abril 2025 da Patricia...');
     
     // Conectar ao MongoDB
     client = new MongoClient(MONGODB_URI);
@@ -18,15 +18,15 @@ async function debugClientesAbril() {
     const db = client.db(DB_NAME);
     const clientesCollection = db.collection('clientes');
     
-    // Buscar clientes da Mariele
-    const clientesMariele = await clientesCollection.find({
-      usuarios: "mariele"
+    // Buscar clientes da Patricia
+    const clientesPatricia = await clientesCollection.find({
+      usuarios: "patricia"
     }).toArray();
     
-    console.log(`📊 Total de clientes da Mariele: ${clientesMariele.length}`);
+    console.log(`📊 Total de clientes da Patricia: ${clientesPatricia.length}`);
     
     // Verificar clientes com data_pagamento em Abril
-    const clientesPagosAbril = clientesMariele.filter(cliente => {
+    const clientesPagosAbril = clientesPatricia.filter(cliente => {
       if (cliente.status === "pago" && cliente.data_pagamento) {
         const dataPagamento = new Date(cliente.data_pagamento + 'T00:00:00');
         const mesPagamento = dataPagamento.toLocaleDateString("pt-BR", { month: "long" });
@@ -71,7 +71,7 @@ async function debugClientesAbril() {
       console.log('\n❌ Nenhum cliente pago encontrado para Abril 2025');
       
       // Verificar todas as datas de pagamento
-      const datasPagamento = clientesMariele
+      const datasPagamento = clientesPatricia
         .filter(c => c.status === "pago" && c.data_pagamento)
         .map(c => c.data_pagamento);
       
@@ -85,7 +85,7 @@ async function debugClientesAbril() {
     }
     
     // Verificar clientes cadastrados em Abril (para contagem)
-    const clientesCadastradosAbril = clientesMariele.filter(cliente => {
+    const clientesCadastradosAbril = clientesPatricia.filter(cliente => {
       const dataCadastro = new Date(cliente.data + 'T00:00:00');
       const mesCadastro = dataCadastro.toLocaleDateString("pt-BR", { month: "long" });
       const anoCadastro = dataCadastro.getFullYear();

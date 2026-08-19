@@ -1,4 +1,4 @@
-// Script para remover metas do vendedor "geral" e manter apenas as da Mariele
+// Script para remover metas do vendedor "geral" e manter apenas as da Patricia
 const { MongoClient } = require('mongodb');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://admin:admin123@poracred.lep058a.mongodb.net/?retryWrites=true&w=majority&appName=PoraCred';
@@ -59,7 +59,7 @@ async function limparMetasGeral() {
     // 5. Verificar metas restantes
     const metasRestantes = await collection.find({}).toArray();
     
-    console.log('\n✅ METAS RESTANTES (APENAS MARIELE):');
+    console.log('\n✅ METAS RESTANTES (APENAS PATRICIA):');
     console.log('='.repeat(60));
     
     if (metasRestantes.length > 0) {

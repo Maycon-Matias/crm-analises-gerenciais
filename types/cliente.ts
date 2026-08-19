@@ -85,5 +85,5 @@ export const opcoesPredefinidas = {
     "Cliente Fixo",
     "Indicação",
   ],
-  usuarios: ["Amanda", "Lais", "Carlos", "Ana"],
+  usuarios: ["Beatriz", "Fernanda", "Diego", "Ana"],
 };

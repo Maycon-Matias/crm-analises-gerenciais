@@ -50,8 +50,8 @@ async function limpezaCompletaMetas() {
       console.log('✅ Agora você pode criar novas metas sem conflitos');
       console.log('\n💡 PRÓXIMOS PASSOS:');
       console.log('   1. Acesse o gerenciador de metas');
-      console.log('   2. Crie uma nova meta para a Mariele');
-      console.log('   3. Configure: Mariele - Abril 2025 - R$ 120.000');
+      console.log('   2. Crie uma nova meta para a Patricia');
+      console.log('   3. Configure: Patricia - Abril 2025 - R$ 120.000');
       console.log('   4. As metas agora serão salvas corretamente');
     } else {
       console.log('❌ Erro: Ainda existem metas no banco');

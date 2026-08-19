@@ -5,9 +5,9 @@ const DB_PATH = path.join(process.cwd(), 'CRM_v2', 'sistema-cadastro-clientes', 
 
 const nomeParaId = {
   'Maycon': '1',
-  'Amanda': '2',
-  'Adriana': '3',
-  'Lais': '4',
+  'Beatriz': '2',
+  'Camila': '3',
+  'Fernanda': '4',
   'Ana': '5',
 };
 

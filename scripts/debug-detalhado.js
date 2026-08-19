@@ -19,24 +19,24 @@ function isFontePrincipal(fonte) {
   return resultado;
 }
 
-// Simular dados da Mariele
-const clientesMariele = [
+// Simular dados da Patricia
+const clientesPatricia = [
   {
-    usuarios: "mariele",
+    usuarios: "patricia",
     fonte: "URA",
     status: "pago",
     data_pagamento: "2025-04-08",
     valor: "R$ 1.358,02"
   },
   {
-    usuarios: "mariele",
+    usuarios: "patricia",
     fonte: "Rede Social",
     status: "pago",
     data_pagamento: "2025-04-24",
     valor: "R$ 683,30"
   },
   {
-    usuarios: "mariele",
+    usuarios: "patricia",
     fonte: "Corretor(TI)",
     status: "pago",
     data_pagamento: "2025-04-09",
@@ -46,7 +46,7 @@ const clientesMariele = [
 
 // Simular meta
 const meta = {
-  usuario: "Mariele",
+  usuario: "Patricia",
   mes: "Abril",
   ano: 2025,
   valorMeta: 120000
@@ -57,9 +57,9 @@ console.log('============================================');
 
 console.log('\n📋 DADOS DE ENTRADA:');
 console.log(`   Meta: ${meta.usuario} - ${meta.mes} ${meta.ano} - R$ ${meta.valorMeta.toLocaleString('pt-BR')}`);
-console.log(`   Total de clientes: ${clientesMariele.length}`);
+console.log(`   Total de clientes: ${clientesPatricia.length}`);
 
-clientesMariele.forEach((cliente, index) => {
+clientesPatricia.forEach((cliente, index) => {
   console.log(`\n   Cliente ${index + 1}:`);
   console.log(`     Usuários: "${cliente.usuarios}"`);
   console.log(`     Fonte: "${cliente.fonte}"`);
@@ -70,7 +70,7 @@ clientesMariele.forEach((cliente, index) => {
 
 console.log('\n🔍 PROCESSANDO CADA CLIENTE:');
 
-clientesMariele.forEach((cliente, index) => {
+clientesPatricia.forEach((cliente, index) => {
   console.log(`\n   --- CLIENTE ${index + 1}: ${cliente.usuarios} ---`);
   
   // 1. Verificar se é fonte principal
